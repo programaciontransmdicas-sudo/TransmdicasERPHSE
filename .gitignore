@@ -1,0 +1,62 @@
+# ==========================================
+# DEPENDENCIAS
+# ==========================================
+node_modules/
+
+# ==========================================
+# VARIABLES DE ENTORNO / SECRETOS
+# ==========================================
+.env
+.env.*
+*.env
+
+# Si luego creamos archivos de ejemplo, sí podrán subirse
+!.env.example
+!backend/.env.example
+!app_flotas_web/.env.example
+
+# ==========================================
+# ARCHIVOS DEL SISTEMA
+# ==========================================
+.DS_Store
+Thumbs.db
+
+# ==========================================
+# LOGS
+# ==========================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ==========================================
+# BUILDS
+# ==========================================
+dist/
+build/
+.vercel/
+
+# ==========================================
+# BACKUPS / ARCHIVOS TEMPORALES
+# ==========================================
+*.backup
+*.dump
+backend/backups/
+
+# ==========================================
+# ARCHIVOS INTERNOS DEL ERP
+# ==========================================
+backend/Personal_Importacion_Neon.csv
+backend/backup_dicas.sql
+backend/TEST_MASTER.xlsx
+backend/alertas_enviadas_hoy.json
+
+# Excel de trabajo local
+entrega de equipos TI.xlsx
+
+# ==========================================
+# ARCHIVOS SUBIDOS LOCALMENTE
+# ==========================================
+backend/uploads/*
+!backend/uploads/.gitkeep
