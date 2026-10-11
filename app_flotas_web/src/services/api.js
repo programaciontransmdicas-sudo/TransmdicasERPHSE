@@ -3,7 +3,7 @@ import { toast } from 'react-hot-toast';
 // Si estamos en desarrollo usa localhost, si es producción usa Render
 export const BASE_API_URL = import.meta.env.DEV
   ? `http://${window.location.hostname}:8000`
-  : 'https://jdcali-backend.onrender.com';
+  : 'https://transmdicas-backend.onrender.com';
 const BASE_URL = BASE_API_URL;
 
 // Wrapper global para fetch que inyecta el token y maneja el 401
