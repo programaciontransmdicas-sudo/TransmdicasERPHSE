@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js",
+    "dev": "node --watch server.js",
     "test:inspecciones": "node --experimental-test-module-mocks --test test/inspecciones.test.js",
     "test:programacion-lote": "node --experimental-test-module-mocks --test test/programacionLote.test.js",
     "test:reprogramacion": "node --experimental-test-module-mocks --test test/reprogramacionDestinos.test.js",
@@ -38,8 +38,6 @@
     }
   },
   "devDependencies": {
-    "node-fetch": "^3.3.2",
-    "nodemon": "^3.1.14",
-    "proxy-agent": "^8.0.2"
+    "node-fetch": "^3.3.2"
   }
 }
