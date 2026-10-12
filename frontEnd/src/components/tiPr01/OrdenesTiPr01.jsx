@@ -299,6 +299,7 @@ const FormularioDetalle = ({ detalle, estados, guardando, onGuardar }) => {
   const [nivel, setNivel] = useState(comoTexto(detalle.nivel_completado));
   const [observaciones, setObservaciones] = useState(comoTexto(detalle.observaciones));
   const [local, setLocal] = useState(null);
+  const [enlaceVideo, setEnlaceVideo] = useState(comoTexto(detalle.enlace_video));
 
   const exigencia = exigenciaDeResultado(detalle, estado);
   const nivelBloqueado = exigencia.nivelFijo;
@@ -327,6 +328,10 @@ const FormularioDetalle = ({ detalle, estados, guardando, onGuardar }) => {
     if (obsNueva !== (detalle.observaciones ?? null)) d.observaciones = obsNueva;
 
 
+    if (detalle.tipo_equipo === 'CAMARAS') {
+      const enlace = enlaceVideo.trim() || null;
+      if (enlace !== (detalle.enlace_video ?? null)) d.enlace_video = enlace;
+    }
     return d;
   };
 
@@ -373,6 +378,14 @@ const FormularioDetalle = ({ detalle, estados, guardando, onGuardar }) => {
 
       <ChecklistEquipo detalle={detalle} />
 
+      {detalle.tipo_equipo === 'CAMARAS' && <div className="ti-field" style={{ marginTop: 10 }}>
+        <label htmlFor={`ti-d-video-${detalle.id}`}>Enlace del video</label>
+        <input id={`ti-d-video-${detalle.id}`} type="url" maxLength={2048} value={enlaceVideo}
+          placeholder="https://..." disabled={guardando}
+          onChange={e => { setEnlaceVideo(e.target.value); setLocal(null); }} />
+        <div className="ti-smalltxt">Opcional. Comprueba que las personas autorizadas puedan abrir el enlace.</div>
+      </div>}
+
       <div className="ti-field" style={{ marginTop: 10 }}>
         <label htmlFor={`ti-d-obs-${detalle.id}`}>Observaciones del equipo</label>
         <textarea
@@ -393,6 +406,15 @@ const FormularioDetalle = ({ detalle, estados, guardando, onGuardar }) => {
           disabled={guardando || cambios.length === 0}
           onClick={async () => {
             setLocal(null);
+            if (detalle.tipo_equipo === 'CAMARAS' && enlaceVideo.trim()) {
+              try {
+                const url = new URL(enlaceVideo.trim());
+                if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) throw new Error();
+              } catch {
+                setLocal({ status: 400, message: 'Ingresa un enlace válido que comience con https:// o http://.' });
+                return;
+              }
+            }
             const e = await onGuardar(detalle.id, delta());
             if (e) setLocal(e);
           }}
@@ -407,6 +429,7 @@ const FormularioDetalle = ({ detalle, estados, guardando, onGuardar }) => {
             setEstado(detalle.estado);
             setNivel(comoTexto(detalle.nivel_completado));
             setObservaciones(comoTexto(detalle.observaciones));
+            setEnlaceVideo(comoTexto(detalle.enlace_video));
             setLocal(null);
           }}
         >
@@ -1122,6 +1145,12 @@ const DetalleOrden = ({
                       ) : (
                         <>
                           <ChecklistEquipo detalle={d} />
+                          {d.tipo_equipo === 'CAMARAS' && <div style={{ margin: '10px 0' }}>
+                            <b>Enlace del video: </b>
+                            {d.enlace_video && /^https?:\/\//i.test(d.enlace_video)
+                              ? <a href={d.enlace_video} target="_blank" rel="noopener noreferrer">Abrir video</a>
+                              : <span className="ti-smalltxt">Sin enlace registrado</span>}
+                          </div>}
                           {d.observaciones
                             ? <p style={{ margin: 0 }}>{d.observaciones}</p>
                             : (

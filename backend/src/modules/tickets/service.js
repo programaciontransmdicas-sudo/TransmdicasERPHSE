@@ -240,3 +240,22 @@ export const obtenerClientesOperacionesUnicas =
         )
       );
   };
+
+
+export const validarRespuestaSolicitudVideo = datos => {
+  const fallo = mensaje => { throw Object.assign(new Error(mensaje), { status: 400 }); };
+  if (!Array.isArray(datos?.enlaces_videos) || datos.enlaces_videos.length < 1 || datos.enlaces_videos.length > 20) {
+    fallo('Agrega entre 1 y 20 enlaces de los videos.');
+  }
+  const enlaces = datos.enlaces_videos.map(valor => {
+    if (typeof valor !== 'string' || valor.trim().length > 2048) fallo('Uno de los enlaces no es válido.');
+    const enlace = valor.trim();
+    let url;
+    try { url = new URL(enlace); } catch { fallo('Usa enlaces completos que comiencen con https:// o http://.'); }
+    if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) fallo('Uno de los enlaces no es válido.');
+    return enlace;
+  });
+  const observaciones = datos.observaciones_atencion ?? '';
+  if (typeof observaciones !== 'string' || observaciones.length > 4000) fallo('Las observaciones deben tener como máximo 4000 caracteres.');
+  return { enlacesVideos: [...new Set(enlaces)], observacionesAtencion: observaciones.trim() || null };
+};

@@ -149,7 +149,8 @@ export const CAMPOS_EDITABLES_CABECERA = [
 export const CAMPOS_EDITABLES_DETALLE = [
   'estado',
   'nivel_completado',
-  'observaciones'
+  'observaciones',
+  'enlace_video'
 ];
 
 // Los campos opcionales del cierre. El usuario y el estado los decide el servidor, y el
@@ -661,6 +662,9 @@ export const prepararActualizacionDetalle = datos => {
         : undefined,
       nivel_completado: campos.includes('nivel_completado')
         ? normalizarNivel(datos.nivel_completado)
+        : undefined,
+      enlace_video: campos.includes('enlace_video')
+        ? normalizarEnlaceVideo(datos.enlace_video)
         : undefined,
       observaciones: campos.includes('observaciones')
         ? normalizarTextoOpcional('observaciones', datos.observaciones)
@@ -1336,3 +1340,25 @@ export const presentarEvidencia = (
     },
   imagen: `${rutaBase}/${evidencia.id}/imagen`
 });
+
+
+export const normalizarEnlaceVideo = valor => {
+  if (valor === null || (typeof valor === 'string' && !valor.trim())) return null;
+  if (typeof valor !== 'string' || valor.trim().length > 2048) {
+    throw new ValidationError('El enlace del video debe ser un texto de hasta 2048 caracteres.');
+  }
+  const enlace = valor.trim();
+  let url;
+  try { url = new URL(enlace); }
+  catch { throw new ValidationError('Ingresa un enlace completo que comience con https:// o http://.'); }
+  if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) {
+    throw new ValidationError('El enlace del video no es válido.');
+  }
+  return enlace;
+};
+
+export const validarEnlaceVideoDelEquipo = (detalle, campos) => {
+  if (campos.includes('enlace_video') && detalle.tipo_equipo !== 'CAMARAS') {
+    throw new ValidationError('Solo el equipo Cámaras admite un enlace de video.');
+  }
+};

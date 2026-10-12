@@ -44,6 +44,7 @@ import {
   prepararApertura,
   prepararActualizacionCabecera,
   prepararActualizacionDetalle,
+  validarEnlaceVideoDelEquipo,
   prepararCierre,
   prepararAnulacion,
   bloqueosDeApertura,
@@ -608,6 +609,8 @@ export const editarDetalle = manejar(
       if (!detalle) {
         throw noEncontrado(MENSAJES.detalleNoEncontrado);
       }
+
+      validarEnlaceVideoDelEquipo(detalle, campos);
 
       // Primero la coherencia: si la combinacion final es invalida no se escribe nada, y
       // en particular un PARCIAL sobre GPS o ADAS no llega nunca a los ciclos.

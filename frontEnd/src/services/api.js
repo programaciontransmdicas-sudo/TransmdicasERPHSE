@@ -817,13 +817,14 @@ export const api = {  // ==========================================
     },
 
   updateEstadoSolicitudDescargaVideos:
-    async (id, estado) => {
+    async (id, estado, respuesta = {}) => {
       const response =
         await fetchWithAuth(
           `${BASE_API_URL}/api/incidentes/solicitudes-descarga-videos/${id}/estado`,
           {
             method: 'PATCH',
             body: JSON.stringify({
+              ...respuesta,
               estado
             })
           }

@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 
 import { api } from '../services/api';
 import { UiIcon } from './UiIcon';
+import { RespuestaSolicitudVideosModal } from './RespuestaSolicitudVideosModal';
 
 const ESTADOS = [
   'Pendiente',
@@ -62,6 +63,7 @@ export function SolicitudesDescargaVideosPanel({
   const [solicitudes, setSolicitudes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
+  const [respuesta, setRespuesta] = useState(null);
 
   const cargarSolicitudes = useCallback(async () => {
     try {
@@ -84,32 +86,37 @@ export function SolicitudesDescargaVideosPanel({
   }, []);
 
   useEffect(() => {
-    cargarSolicitudes();
+    let activa = true;
+    Promise.resolve().then(() => { if (activa) cargarSolicitudes(); });
+    return () => { activa = false; };
   }, [cargarSolicitudes]);
 
-  const cambiarEstado = async (id, estado) => {
+  const cambiarEstado = async (id, estado, entrega = {}) => {
     try {
       setUpdatingId(id);
 
-      await api.updateEstadoSolicitudDescargaVideos(
+      const resultado = await api.updateEstadoSolicitudDescargaVideos(
         id,
-        estado
+        estado,
+        entrega
       );
 
       setSolicitudes(actuales =>
         actuales.map(solicitud =>
           solicitud.id === id
-            ? { ...solicitud, estado }
+            ? { ...solicitud, ...resultado.solicitud, estado }
             : solicitud
         )
       );
 
-      toast.success('Estado actualizado');
+      toast.success(estado === 'Atendida' ? 'Videos entregados. La solicitud fue atendida.' : 'Estado actualizado');
+      return true;
     } catch (error) {
       toast.error(
         error.message ||
         'No se pudo actualizar el estado'
       );
+      return false;
     } finally {
       setUpdatingId(null);
     }
@@ -200,7 +207,8 @@ export function SolicitudesDescargaVideosPanel({
                   'Descarga solicitada',
                   'Motivo',
                   'Ingreso',
-                  'Estado'
+                  'Estado',
+                  'Respuesta'
                 ].map(titulo => (
                   <th
                     key={titulo}
@@ -297,12 +305,11 @@ export function SolicitudesDescargaVideosPanel({
                         <select
                           value={solicitud.estado}
                           disabled={updatingId === solicitud.id}
-                          onChange={event =>
-                            cambiarEstado(
-                              solicitud.id,
-                              event.target.value
-                            )
-                          }
+                          onChange={event => {
+                            const estado = event.target.value;
+                            if (estado === 'Atendida') setRespuesta({ solicitud, soloLectura: false });
+                            else cambiarEstado(solicitud.id, estado);
+                          }}
                           style={{
                             padding: '0.45rem 0.65rem',
                             borderRadius: '2rem',
@@ -331,6 +338,13 @@ export function SolicitudesDescargaVideosPanel({
                         </span>
                       )}
                     </td>
+                    <td style={{ padding: '0.85rem' }}>
+                      {(solicitud.estado === 'Atendida' || solicitud.enlaces_videos?.length > 0) &&
+                        <button type="button" className="ui-button ui-button-secondary" onClick={() => setRespuesta({ solicitud, soloLectura: true })}>Ver respuesta</button>}
+                      {canManage && solicitud.estado === 'Atendida' &&
+                        <button type="button" className="ui-button ui-button-secondary" disabled={updatingId === solicitud.id}
+                          style={{ marginTop: '0.4rem' }} onClick={() => setRespuesta({ solicitud, soloLectura: false })}>Editar entrega</button>}
+                    </td>
                   </tr>
                 );
               })}
@@ -338,6 +352,14 @@ export function SolicitudesDescargaVideosPanel({
           </table>
         </div>
       )}
+      {respuesta && <RespuestaSolicitudVideosModal key={respuesta.solicitud.id + String(respuesta.soloLectura)}
+        solicitud={respuesta.solicitud} soloLectura={respuesta.soloLectura}
+        guardando={updatingId === respuesta.solicitud.id}
+        onCerrar={() => setRespuesta(null)}
+        onGuardar={async entrega => {
+          const ok = await cambiarEstado(respuesta.solicitud.id, 'Atendida', entrega);
+          if (ok) setRespuesta(null);
+        }} />}
     </section>
   );
 }

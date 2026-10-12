@@ -442,6 +442,7 @@ export const obtenerDetalleDeOrden = async (
             d.estado,
             d.nivel_completado,
             d.observaciones,
+            d.enlace_video,
             d.evidencias,
             d.created_at,
             d.updated_at
@@ -513,7 +514,8 @@ const PERMITIDOS_CABECERA = {
 const PERMITIDOS_DETALLE = {
   estado: { cast: '' },
   nivel_completado: { cast: '' },
-  observaciones: { cast: '' }
+  observaciones: { cast: '' },
+  enlace_video: { cast: '' }
 };
 
 // La guarda de estado va en el propio WHERE: con el cerrojo de la cabecera ya tomado no
@@ -598,6 +600,7 @@ export const obtenerDetallesDeOrdenes = async (
             d.estado,
             d.nivel_completado,
             d.observaciones,
+            d.enlace_video,
             d.evidencias,
             d.created_at,
             d.updated_at
@@ -887,6 +890,7 @@ export const obtenerDetallesParaValidarCierre = async (
     `SELECT d.id,
             d.estado,
             d.observaciones,
+            d.enlace_video,
             e.tipo_equipo,
             (SELECT count(*)::int
                FROM ordenes_trabajo_evidencias ev

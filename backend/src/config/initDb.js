@@ -72,6 +72,10 @@ const ESQUEMA_ESPERADO = {
   'creado_por'
 ],
 solicitudes_descarga_videos: [
+  'enlaces_videos',
+  'observaciones_atencion',
+  'atendida_por',
+  'fecha_atencion',
   'id',
   'operacion',
   'fecha_descarga',
@@ -321,6 +325,7 @@ solicitud_descarga_video_placas: [
   ],
 
   ordenes_trabajo_detalle: [
+    'enlace_video',
     'id',
     'orden_trabajo_id',
     'programacion_id',

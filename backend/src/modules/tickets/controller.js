@@ -34,7 +34,8 @@ import {
   IMPLEMENTOS_PERMITIDOS,
   componenteConFalla,
   obtenerOperacionesUnicas,
-  obtenerClientesOperacionesUnicas
+  obtenerClientesOperacionesUnicas,
+  validarRespuestaSolicitudVideo
 } from './service.js';
 
 import {
@@ -518,7 +519,8 @@ export const listarSolicitudesDescargaVideos =
           accesoTotal:
             contexto.accesoTotal,
           clienteOperacionIds:
-            contexto.clienteOperacionIds
+            contexto.clienteOperacionIds,
+          usuarioId: req.user.id
         });
 
       return res.json(
@@ -611,10 +613,19 @@ export const cambiarEstadoSolicitudDescargaVideos =
           'gestionar'
         );
 
+      if (!['admin', 'ti'].includes(contexto.rol)) {
+        return res.status(403).json({ error: 'No tienes permiso para atender solicitudes de videos.' });
+      }
+      const respuesta = estado === 'Atendida'
+        ? validarRespuestaSolicitudVideo(req.body)
+        : { enlacesVideos: null, observacionesAtencion: null };
+
       const solicitud =
         await actualizarEstadoSolicitudDescargaVideos({
           id,
           estado,
+          ...respuesta,
+          atendidaPor: req.user.id,
           accesoTotal:
             contexto.accesoTotal,
           clienteOperacionIds:
@@ -639,14 +650,15 @@ export const cambiarEstadoSolicitudDescargaVideos =
         solicitud
       );
       if (
-        Numer(solicitud.solicitado_por) !== Number(req.user.id)
+        Number(solicitud.solicitado_por) !== Number(req.user.id)
       ) {
         await crearNotificacionUsuario({
           usuarioId: solicitud.solicitado_por,
           tipo: 'SOLICITUD_VIDEO_ESTADO',
-          titulo: 'Solicitud de video actualizada',
-          mensaje: ` La solicitud #${solicitud.id} cambio a ` +
-            `"${estado}". `,
+          titulo: estado === 'Atendida' ? 'Videos disponibles' : 'Solicitud de video actualizada',
+          mensaje: estado === 'Atendida'
+            ? `La solicitud #${solicitud.id} fue atendida. Abre Solicitudes de descarga de videos para consultar los enlaces y la respuesta.`
+            : `La solicitud #${solicitud.id} cambió a "${estado}".`,
           url: 'tickets'
         }).catch(error => {
           console.error(
@@ -667,6 +679,7 @@ export const cambiarEstadoSolicitudDescargaVideos =
       );
 
       if (
+        error.status === 400 ||
         error.status === 401 ||
         error.status === 403
       ) {

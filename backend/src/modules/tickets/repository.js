@@ -449,7 +449,8 @@ export const insertarSolicitudDescargaVideos =
 export const obtenerSolicitudesDescargaVideos =
   async ({
     accesoTotal,
-    clienteOperacionIds
+    clienteOperacionIds,
+    usuarioId
   }) => {
     const result =
       await pool.query(
@@ -463,6 +464,11 @@ export const obtenerSolicitudesDescargaVideos =
            s.estado,
            s.fecha_ingreso,
            s.solicitado_por,
+           s.enlaces_videos,
+           s.observaciones_atencion,
+           s.atendida_por,
+           s.fecha_atencion,
+           atendedor.username AS nombre_atendedor,
 
            COALESCE(
              p.nombre_completo,
@@ -484,6 +490,8 @@ export const obtenerSolicitudesDescargaVideos =
          INNER JOIN usuarios u
            ON u.id = s.solicitado_por
 
+         LEFT JOIN usuarios atendedor ON atendedor.id = s.atendida_por
+
          LEFT JOIN personal p
            ON p.id = u.persona_id
 
@@ -492,6 +500,7 @@ export const obtenerSolicitudesDescargaVideos =
 
          WHERE
            $1::boolean = TRUE
+           OR s.solicitado_por = $3::integer
            OR (
              EXISTS (
                SELECT 1
@@ -516,14 +525,16 @@ export const obtenerSolicitudesDescargaVideos =
          GROUP BY
            s.id,
            u.username,
-           p.nombre_completo
+           p.nombre_completo,
+           atendedor.username
 
          ORDER BY
            s.fecha_ingreso DESC,
            s.id DESC`,
         [
           Boolean(accesoTotal),
-          clienteOperacionIds || []
+          clienteOperacionIds || [],
+          usuarioId
         ]
       );
 
@@ -540,12 +551,19 @@ export const actualizarEstadoSolicitudDescargaVideos =
     id,
     estado,
     accesoTotal,
-    clienteOperacionIds
+    clienteOperacionIds,
+    enlacesVideos,
+    observacionesAtencion,
+    atendidaPor
   }) => {
     const result =
       await pool.query(
         `UPDATE solicitudes_descarga_videos
-         SET estado = $1
+         SET estado = $1::varchar,
+             enlaces_videos = CASE WHEN $1::text = 'Atendida' THEN $5::jsonb ELSE enlaces_videos END,
+             observaciones_atencion = CASE WHEN $1::text = 'Atendida' THEN $6::text ELSE observaciones_atencion END,
+             atendida_por = CASE WHEN $1::text = 'Atendida' THEN $7::integer ELSE atendida_por END,
+             fecha_atencion = CASE WHEN $1::text = 'Atendida' THEN CURRENT_TIMESTAMP ELSE fecha_atencion END
          WHERE id = $2
            AND (
              $3::boolean = TRUE
@@ -573,7 +591,10 @@ export const actualizarEstadoSolicitudDescargaVideos =
           estado,
           id,
           Boolean(accesoTotal),
-          clienteOperacionIds || []
+          clienteOperacionIds || [],
+          enlacesVideos === null ? null : JSON.stringify(enlacesVideos),
+          observacionesAtencion,
+          atendidaPor
         ]
       );
 

@@ -705,7 +705,7 @@ test('JSONB LEGACY · evidencias ya no es un campo editable de la OT ni del deta
   assert.deepEqual(CAMPOS_EDITABLES_CABECERA, ['minutos', 'observaciones']);
   assert.deepEqual(
     CAMPOS_EDITABLES_DETALLE,
-    ['estado', 'nivel_completado', 'observaciones']
+    ['estado', 'nivel_completado', 'observaciones', 'enlace_video']
   );
 
   for (const preparar of [
