@@ -70,7 +70,7 @@ export const ROLE_PERMISSIONS = {
     },
 
     mantenimiento: {
-      ver: false,
+      ver: true,
       editar: false
     },
 

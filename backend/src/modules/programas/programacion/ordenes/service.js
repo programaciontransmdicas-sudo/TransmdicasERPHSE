@@ -1078,17 +1078,16 @@ export const validarArchivoEvidencia = (
 // -------------------------------------------------------------------------------------
 // QUIEN PUEDE SUBIR
 // -------------------------------------------------------------------------------------
-// Solo TI, y solo con la OT ABIERTA. Lo segundo lo garantiza ademas el trigger
+// TI y administradores, y solo con la OT ABIERTA. Lo segundo lo garantiza ademas el trigger
 // validar_evidencia_ot_abierta de 018, pero aqui se rechaza antes de subir nada a
 // Cloudinary: dejar que falle en el INSERT significaria haber subido el asset para nada.
 export const exigirPuedeSubirEvidencia = (
   orden,
   usuario
 ) => {
-  if (!esUsuarioTi(usuario)) {
+  if (!esUsuarioTi(usuario) && !esUsuarioAdmin(usuario)) {
     throw new ValidationError(
-      'Solo un usuario de TI puede cargar evidencia fotográfica. El resto de usuarios '
-      + 'autorizados puede consultarla.',
+      'Solo TI o un administrador pueden cargar evidencia fotográfica.',
       403,
       CODIGOS_EVIDENCIA.SOLO_TI_SUBE
     );
@@ -1136,7 +1135,7 @@ export const exigirHuecoParaEvidencia = (
 // -------------------------------------------------------------------------------------
 // QUIEN PUEDE RETIRAR, Y CUANDO
 // -------------------------------------------------------------------------------------
-//   ABIERTA   -> TI. Es su trabajo en curso: puede quitar una foto subida por error.
+//   ABIERTA   -> TI o ADMIN. Es trabajo en curso: puede quitar una foto subida por error.
 //   CERRADA   -> ADMIN y solo ADMIN, con motivo. Y NO puede dejar sin evidencia un apartado
 //                que la exige por su resultado: esa es la regla de la ultima evidencia.
 //   ANULADA   -> ADMIN y solo ADMIN, con motivo, y SI puede retirar la ultima: la orden ya
@@ -1150,15 +1149,15 @@ export const exigirPuedeRetirarEvidencia = ({
   activas
 }) => {
   if (orden.estado === ESTADO_ABIERTA) {
-    if (!esUsuarioTi(usuario)) {
+    if (!esUsuarioTi(usuario) && !esUsuarioAdmin(usuario)) {
       throw new ValidationError(
-        'Solo un usuario de TI puede retirar evidencia de una orden abierta.',
+        'Solo TI o un administrador pueden retirar evidencia de una orden abierta.',
         403,
         CODIGOS_EVIDENCIA.SOLO_TI_RETIRA
       );
     }
 
-    return { regla: 'ABIERTA_TI' };
+    return { regla: esUsuarioAdmin(usuario) ? 'ABIERTA_ADMIN' : 'ABIERTA_TI' };
   }
 
   // CERRADA y ANULADA comparten que solo ADMIN puede tocarlas.

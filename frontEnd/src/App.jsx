@@ -218,7 +218,7 @@ function App() {
   };
 
   const abrirMantenimiento = (vista) => {
-    setMantenimientoVista(vista);
+    setMantenimientoVista(isSupervisor ? 'historial' : vista);
     setMantenimientoNavKey((prev) => prev + 1);
     setActiveTab("mantenimiento");
   };
@@ -233,8 +233,10 @@ function App() {
   const isAdmin =
     user?.rol?.toLowerCase() === "admin" ||
     user?.rol?.toLowerCase() === "administrador";
+  const isSupervisor = String(user?.rol || '').trim().toLowerCase() === 'supervisor';
   const hasAccess = (modulo) => {
     if (isAdmin) return true;
+    if (modulo === 'mantenimiento' && isSupervisor) return true;
     return user?.permisos?.[modulo]?.ver === true;
   };
 
@@ -353,7 +355,7 @@ function App() {
   const MantenimientoSubItem = ({ vista, icon, label }) => (
     <button
       type="button"
-      className={`erp-nav-item erp-nav-subitem ${activeTab === "mantenimiento" && mantenimientoVista === vista
+      className={`erp-nav-item erp-nav-subitem ${activeTab === "mantenimiento" && (isSupervisor ? "historial" : mantenimientoVista) === vista
           ? "active"
           : ""
         }`}
@@ -521,6 +523,7 @@ function App() {
 
                       {isMantenimientoOpen && !isDesktopCollapsed && (
                         <div className="erp-nav-submenu erp-nav-submenu-level-2">
+                          {!isSupervisor && <>
                           <MantenimientoSubItem
                             vista="programa"
                             icon="clipboard"
@@ -536,6 +539,7 @@ function App() {
                             icon="wrench"
                             label="Órdenes de trabajo"
                           />
+                          </>}
                           <MantenimientoSubItem
                             vista="historial"
                             icon="download"
@@ -684,10 +688,11 @@ function App() {
           )}
           {activeTab === "mantenimiento" && hasAccess("mantenimiento") && (
             <MantenimientoTecnico
+              usuario={user}
               permisos={
                 isAdmin ? { editar: true } : user?.permisos?.mantenimiento
               }
-              vistaInicial={mantenimientoVista}
+              vistaInicial={isSupervisor ? "historial" : mantenimientoVista}
               navegacionId={mantenimientoNavKey}
               onVistaChange={setMantenimientoVista}
             />

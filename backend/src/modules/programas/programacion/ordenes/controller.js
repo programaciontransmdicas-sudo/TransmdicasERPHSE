@@ -1,3 +1,4 @@
+import { validarChecklistAlCerrar } from './checklist.js';
 import { pool } from '../../../../config/database.js';
 
 import {
@@ -748,6 +749,8 @@ export const cerrarOrdenTrabajo = manejar(
       if (incumplimientos.length > 0) {
         throw errorDeEvidenciasIncompletas(incumplimientos);
       }
+
+      await validarChecklistAlCerrar(otId, client);
 
       // ------------------------------------------------------------------ F5.1
       // EL TECNICO SE RESUELVE AQUI Y SOLO AQUI, con la cabecera ya bloqueada por

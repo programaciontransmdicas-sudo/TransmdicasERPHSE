@@ -298,14 +298,15 @@ test('CASOS 8 y 9 · GPS y ADAS no admiten evidencia, con ningun resultado', () 
   }
 });
 
-test('CASO 7 · solo TI sube evidencia', () => {
+test('CASO 7 · TI y ADMIN suben evidencia', () => {
   assert.equal(
     capturar(() => exigirPuedeSubirEvidencia(orden(), TI)),
     null,
     'TI puede'
   );
+  assert.equal(capturar(() => exigirPuedeSubirEvidencia(orden(), ADMIN)), null);
 
-  for (const usuario of [ADMIN, SUPERVISOR, {}, null]) {
+  for (const usuario of [SUPERVISOR, {}, null]) {
     const e = capturar(
       () => exigirPuedeSubirEvidencia(orden(), usuario)
     );
@@ -351,7 +352,7 @@ test('CASO 11 · la quinta evidencia se rechaza', () => {
 
 // -------------------------------------------------------------------- permisos de retiro
 
-test('CASOS 17 y 18 · en ABIERTA retira TI y nadie mas', () => {
+test('CASOS 17 y 18 · en ABIERTA retiran TI y ADMIN', () => {
   const r = exigirPuedeRetirarEvidencia({
     orden: orden(),
     detalle: detalle(),
@@ -363,7 +364,7 @@ test('CASOS 17 y 18 · en ABIERTA retira TI y nadie mas', () => {
 
   // TI puede retirar incluso la unica: la orden esta abierta y el sustento todavia no se
   // ha cerrado.
-  for (const usuario of [ADMIN, SUPERVISOR]) {
+  for (const usuario of [SUPERVISOR]) {
     const e = capturar(
       () => exigirPuedeRetirarEvidencia({
         orden: orden(),
@@ -376,6 +377,15 @@ test('CASOS 17 y 18 · en ABIERTA retira TI y nadie mas', () => {
     assert.equal(e.status, 403, `rol ${usuario.rol}`);
     assert.equal(e.code, CODIGOS_EVIDENCIA.SOLO_TI_RETIRA);
   }
+});
+
+test('ADMIN carga solo en ABIERTA y conserva el bloqueo de órdenes cerradas', () => {
+  for (const estado of ['CERRADA', 'ANULADA']) {
+    const e = capturar(() => exigirPuedeSubirEvidencia(orden({ estado }), ADMIN));
+    assert.equal(e.status, 409);
+  }
+  const r = exigirPuedeRetirarEvidencia({ orden: orden(), detalle: detalle(), usuario: ADMIN, activas: 1 });
+  assert.equal(r.regla, 'ABIERTA_ADMIN');
 });
 
 test('CASO 19 · en CERRADA retira ADMIN, y con 2 activas queda 1', () => {
@@ -940,6 +950,8 @@ mock.module('../src/services/auditService.js', {
   }
 });
 
+mock.module('../src/modules/programas/programacion/ordenes/checklist.js', { namedExports: { validarChecklistAlCerrar: async () => {} } });
+
 const {
   subirEvidencia,
   retirarEvidenciaDeOrden,
@@ -1058,8 +1070,16 @@ test('UPLOAD · el orden de cerrojos es cabecera y DESPUES detalle, como el cier
   assert.match(solo('auditar')[0][1], /Cargo evidencia fotografica 9001/);
 });
 
-test('UPLOAD · un no-TI no llega ni a mirar el detalle ni a Cloudinary', async () => {
-  for (const usuario of [ADMIN, SUPERVISOR]) {
+test('UPLOAD · ADMIN puede cargar una fotografía en una orden ABIERTA', async () => {
+  const res = respuesta();
+  await subirEvidencia(peticion(ADMIN, { file: archivo(jpegReal()) }), res);
+  assert.equal(res.codigo, 201);
+  assert.equal(solo('CLOUDINARY_SUBIR').length, 1);
+  assert.deepEqual(tx(), ['BEGIN', 'COMMIT']);
+});
+
+test('UPLOAD · un usuario sin autorización no llega ni a mirar el detalle ni a Cloudinary', async () => {
+  for (const usuario of [SUPERVISOR]) {
     llamadas = [];
 
     const res = respuesta();
@@ -1493,6 +1513,17 @@ test('RETIRO · TI retira en ABIERTA, y el asset NO se destruye', async () => {
   assert.match(solo('auditar')[0][1], /Motivo: Foto desenfocada/);
 });
 
+test('RETIRO · ADMIN retira en ABIERTA conservando el registro y la fotografía', async () => {
+  evidenciaEnBase = evidencia();
+  activasEnBase = 2;
+  const res = respuesta();
+  await retirarEvidenciaDeOrden(peticionRetiro(ADMIN), res);
+  assert.equal(res.codigo, 200);
+  assert.equal(res.datos.evidencia_retirada.regla_aplicada, 'ABIERTA_ADMIN');
+  assert.deepEqual(solo('CLOUDINARY_DESTRUIR'), []);
+  assert.deepEqual(tx(), ['BEGIN', 'COMMIT']);
+});
+
 test('RETIRO · el orden de cerrojos tambien aqui: OT, evidencia y detalle', async () => {
   evidenciaEnBase = evidencia();
   activasEnBase = 3;
@@ -1511,11 +1542,11 @@ test('RETIRO · el orden de cerrojos tambien aqui: OT, evidencia y detalle', asy
   ]);
 });
 
-test('RETIRO · un no-TI no puede retirar en ABIERTA', async () => {
+test('RETIRO · un usuario sin autorización no puede retirar en ABIERTA', async () => {
   evidenciaEnBase = evidencia();
   activasEnBase = 3;
 
-  for (const usuario of [ADMIN, SUPERVISOR]) {
+  for (const usuario of [SUPERVISOR]) {
     llamadas = [];
 
     const res = respuesta();

@@ -13,7 +13,7 @@ node_modules/
 # Si luego creamos archivos de ejemplo, sí podrán subirse
 !.env.example
 !backend/.env.example
-!app_flotas_web/.env.example
+!frontEnd/.env.example
 
 # ==========================================
 # ARCHIVOS DEL SISTEMA

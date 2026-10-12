@@ -15,7 +15,11 @@ import unidadesRoutes from './unidades/routes.js';
 import frecuenciasRoutes from './frecuencias/routes.js';
 import programacionRoutes from './programacion/routes.js';
 
+import { listarHistorialSupervisor } from './historialSupervisor.js';
+
 const router = Router();
+
+router.get('/historial-supervisor', listarHistorialSupervisor);
 
 // ==========================================
 // PROGRAMAS DE MANTENIMIENTO (TI-PR-01)

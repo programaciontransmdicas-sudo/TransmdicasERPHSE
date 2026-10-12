@@ -3,8 +3,8 @@ import { apiTiPr01 } from '../../services/api';
 import { ETIQUETA_EQUIPO } from './dominio';
 
 const MENSAJES = {
-  SOLO_TI_SUBE_EVIDENCIA: 'Solo un usuario TI puede subir fotografías.',
-  SOLO_TI_RETIRA_EVIDENCIA: 'Solo un usuario TI puede retirar fotografías de una orden abierta.',
+  SOLO_TI_SUBE_EVIDENCIA: 'Solo TI o un administrador pueden subir fotografías.',
+  SOLO_TI_RETIRA_EVIDENCIA: 'Solo TI o un administrador pueden retirar fotografías de una orden abierta.',
   SOLO_ADMIN_RETIRA_EVIDENCIA: 'Solo un administrador puede retirar fotografías de una orden cerrada o anulada.',
   ULTIMA_EVIDENCIA_OBLIGATORIA: 'No se puede retirar la última fotografía obligatoria de una orden cerrada.',
   MAXIMO_EVIDENCIAS_ALCANZADO: 'Este apartado ya tiene 4 fotografías activas.',
@@ -150,8 +150,9 @@ export function EvidenciasOrden({ programaId, orden, bloqueado }) {
     ejecutar(() => apiTiPr01.subirEvidenciaOrden(...contexto, apartado.detalle_id, archivo), 'Fotografía agregada.');
   };
   const estadoOrden = galeria?.estado_orden || orden.estado;
-  const puedeSubir = rol === 'ti' && estadoOrden === 'ABIERTA';
-  const puedeRetirar = estadoOrden === 'ABIERTA' ? rol === 'ti' : ['CERRADA', 'ANULADA'].includes(estadoOrden) && rol === 'admin';
+  const puedeGestionarAbierta = rol === 'ti' || rol === 'admin';
+  const puedeSubir = puedeGestionarAbierta && estadoOrden === 'ABIERTA';
+  const puedeRetirar = estadoOrden === 'ABIERTA' ? puedeGestionarAbierta : ['CERRADA', 'ANULADA'].includes(estadoOrden) && rol === 'admin';
   return <section className="ti-card ti-evidence-section" aria-label="Evidencias de la orden">
     <h3>Evidencias fotográficas</h3>
     <div className="ti-pad">

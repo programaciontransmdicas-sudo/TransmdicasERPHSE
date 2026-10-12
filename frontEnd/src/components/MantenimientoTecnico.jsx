@@ -574,7 +574,25 @@ const estadoClase = (estado) => {
   return 'm2-chip m2-chip-grey';
 };
 
-export function MantenimientoTecnico({
+export function MantenimientoTecnico(props) {
+  const esSupervisor = String(props.usuario?.rol || '').trim().toLowerCase() === 'supervisor';
+
+  if (esSupervisor) {
+    return (
+      <div className="erp-module-page">
+        <header className="reports-page-header">
+          <h2>Historial de mantenimientos técnicos</h2>
+          <p>Consulta las intervenciones de tus clientes y operaciones asignados.</p>
+        </header>
+        <HistorialTiPr01 soloLectura />
+      </div>
+    );
+  }
+
+  return <MantenimientoCompleto {...props} />;
+}
+
+function MantenimientoCompleto({
   permisos,
   usuario,
   vistaInicial = 'programa',

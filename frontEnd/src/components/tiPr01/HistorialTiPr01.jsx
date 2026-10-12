@@ -28,6 +28,7 @@
 // Se cuentan aparte y se dice cuántas son, para que la omisión no sea silenciosa.
 import { useEffect, useMemo, useState } from 'react';
 import { cargarProgramaConOrdenes } from './cargarOrdenes';
+import { apiTiPr01 } from '../../services/api';
 import {
   ETIQUETA_EQUIPO,
   ETIQUETA_HISTORIAL,
@@ -98,7 +99,7 @@ const alcanceDeHecho = hecho =>
 // ---------------------------------------------------------------------------
 // PANTALLA
 // ---------------------------------------------------------------------------
-export function HistorialTiPr01({ onIrAOrden }) {
+export function HistorialTiPr01({ onIrAOrden, soloLectura = false }) {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
   const [programa, setPrograma] = useState(null);
@@ -128,13 +129,14 @@ export function HistorialTiPr01({ onIrAOrden }) {
   // obsoletas. Mismo patrón que F1 y F2: si no, react-hooks/set-state-in-effect falla.
   useEffect(() => {
     let vivo = true;
+    const abortador = new AbortController();
 
     (async () => {
       try {
-        const datos = await cargarProgramaConOrdenes({
-          desde: desde || undefined,
-          hasta: hasta || undefined
-        });
+        const filtros = { desde: desde || undefined, hasta: hasta || undefined };
+        const datos = soloLectura
+          ? await apiTiPr01.listarHistorialSupervisorCompleto(filtros, abortador.signal)
+          : await cargarProgramaConOrdenes(filtros);
 
         if (!vivo) return;
 
@@ -154,8 +156,8 @@ export function HistorialTiPr01({ onIrAOrden }) {
       }
     })();
 
-    return () => { vivo = false; };
-  }, [desde, hasta, recarga]);
+    return () => { vivo = false; abortador.abort(); };
+  }, [desde, hasta, recarga, soloLectura]);
 
   // ------------------------------------------------------------------ hechos
   const hechos = useMemo(() => {
@@ -203,10 +205,12 @@ export function HistorialTiPr01({ onIrAOrden }) {
 
       const placa = String(h.visita.unidad?.placa ?? '').toUpperCase();
 
+      const relacion = `${h.visita.unidad?.cliente || ''} ${h.visita.unidad?.operacion || ''}`.toUpperCase();
       return placa.includes(texto)
+        || (soloLectura && relacion.includes(texto))
         || (soloDigitos !== '' && h.orden && String(h.orden.id).includes(soloDigitos));
     });
-  }, [hechos, busqueda, tipo, nivel]);
+  }, [hechos, busqueda, tipo, nivel, soloLectura]);
 
   const totales = useMemo(() => ({
     ejecutadas: hechos.filter(h => h.tipo === TIPOS_HISTORIAL.EJECUTADA).length,
@@ -242,7 +246,7 @@ export function HistorialTiPr01({ onIrAOrden }) {
     );
   }
 
-  if (!programa) {
+  if (!programa && !soloLectura) {
     return (
       <div className="ti">
         <div className="ti-card">
@@ -278,7 +282,7 @@ export function HistorialTiPr01({ onIrAOrden }) {
         <input
           value={busqueda}
           onChange={event => setBusqueda(event.target.value)}
-          placeholder="Buscar placa o N.º de OT"
+          placeholder={soloLectura ? "Buscar placa, cliente, operación u OT" : "Buscar placa o N.º de OT"}
           aria-label="Buscar placa o número de orden"
         />
 
@@ -379,6 +383,7 @@ export function HistorialTiPr01({ onIrAOrden }) {
                   <th>Situación</th>
                   <th>OT</th>
                   <th>Unidad</th>
+                  {soloLectura && <><th>Cliente</th><th>Operación</th></>}
                   <th>Quincena</th>
                   <th>Alcance</th>
                   {FAMILIAS.map(f => (
@@ -388,7 +393,7 @@ export function HistorialTiPr01({ onIrAOrden }) {
                   ))}
                   <th>Resultado de la visita</th>
                   <th>Min.</th>
-                  <th aria-label="Acciones" />
+                  {!soloLectura && <th aria-label="Acciones" />}
                 </tr>
               </thead>
               <tbody>
@@ -409,8 +414,7 @@ export function HistorialTiPr01({ onIrAOrden }) {
                             className="ti-smalltxt"
                             title={
                               h.tipo === TIPOS_HISTORIAL.ANULADA
-                                ? 'ordenes_trabajo no tiene columna de fecha de anulación: '
-                                  + 'se muestra la última modificación de la orden'
+                                ? 'Fecha aproximada basada en la última modificación de la orden'
                                 : 'sin día físico registrado'
                             }
                           >
@@ -432,6 +436,10 @@ export function HistorialTiPr01({ onIrAOrden }) {
                       </td>
 
                       <td className="ti-mono">{h.visita.unidad?.placa ?? '—'}</td>
+                      {soloLectura && <>
+                        <td>{h.visita.unidad?.cliente ?? '—'}</td>
+                        <td>{h.visita.unidad?.operacion ?? '—'}</td>
+                      </>}
 
                       <td>
                         {q?.label ?? '—'}
@@ -518,7 +526,7 @@ export function HistorialTiPr01({ onIrAOrden }) {
                         {h.orden?.minutos ?? '—'}
                       </td>
 
-                      <td className="ti-acciones">
+                      {!soloLectura && <td className="ti-acciones">
                         {h.orden && onIrAOrden ? (
                           <button
                             type="button"
@@ -533,7 +541,7 @@ export function HistorialTiPr01({ onIrAOrden }) {
                         ) : (
                           <span className="ti-smalltxt">sin orden</span>
                         )}
-                      </td>
+                      </td>}
                     </tr>
                   );
                 })}

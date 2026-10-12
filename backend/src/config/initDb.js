@@ -1,6 +1,9 @@
 import { pool } from './database.js';
 
 const ESQUEMA_ESPERADO = {
+  configuracion_checklist_mantenimiento: ['id', 'exigir_al_cerrar', 'updated_at'],
+  catalogo_actividades_mantenimiento: ['id', 'tipo_equipo', 'nivel_origen', 'descripcion', 'orden', 'activo', 'created_at', 'updated_at'],
+  ordenes_trabajo_detalle_actividades: ['id', 'orden_trabajo_detalle_id', 'actividad_catalogo_id', 'descripcion_snapshot', 'nivel_origen_snapshot', 'orden_snapshot', 'estado', 'observacion', 'actualizado_por_id', 'actualizado_en', 'exigible_al_cierre', 'created_at', 'updated_at'],
   audit_logs: [
     'id',
     'user_id',

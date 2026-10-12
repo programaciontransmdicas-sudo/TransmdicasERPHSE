@@ -139,7 +139,7 @@ END $$;
 --   * 0 claves foraneas lo referencian. La unica FK que entra a programacion_mantenimiento
 --     es fk_programacion_equipo_visita, que apunta a uq_programacion_id_programa;
 --   * 0 dependencias no internas de su indice de respaldo: ni vistas, ni reglas, ni triggers;
---   * 0 referencias en backend/src, app_flotas_web, initDb.js y los loaders;
+--   * 0 referencias en backend/src,frontEnd, initDb.js y los loaders;
 --   * la tabla tiene 0 filas, asi que retirarlo no puede crear duplicados;
 --   * idx_programacion_mantenimiento_fecha y ..._estado_fecha sobreviven, de modo que las
 --     consultas por fecha_programada conservan indice.

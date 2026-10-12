@@ -100,6 +100,30 @@ const query = (parametros = {}) => {
 };
 
 export const apiTiPr01 = {
+  listarChecklistOrden: (programaId, visitaId, otId, signal) =>
+    pedirTi(`/${programaId}/programacion/${visitaId}/ordenes-trabajo/${otId}/checklist`, { signal }, 'No se pudo consultar el checklist'),
+  editarActividadChecklist: (programaId, visitaId, otId, actividadId, datos) =>
+    pedirTi(`/${programaId}/programacion/${visitaId}/ordenes-trabajo/${otId}/checklist/${actividadId}`, {
+      method: 'PATCH', body: JSON.stringify(datos)
+    }, 'No se pudo guardar la actividad'),
+  listarHistorialSupervisorCompleto: async (parametros = {}, signal) => {
+    const visitas = [];
+    const ordenes = [];
+    let total = 0;
+    for (let pagina = 0; pagina < 20; pagina += 1) {
+      const datos = await pedirTi(
+        `/historial-supervisor${query({ ...parametros, limite: 500, desplazamiento: visitas.length })}`,
+        { signal },
+        'No se pudo cargar el historial'
+      );
+      total = datos.total;
+      visitas.push(...datos.visitas);
+      ordenes.push(...datos.ordenes);
+      if (!datos.visitas.length || visitas.length >= total) break;
+    }
+    return { programa: null, visitas, ordenes, total, fallidas: 0, truncado: visitas.length < total };
+  },
+
   // ---------------------------------------------------------------- programa
   listarProgramas: (parametros = {}) =>
     pedirTi(`/${query(parametros)}`, {}, 'Error al listar los programas'),

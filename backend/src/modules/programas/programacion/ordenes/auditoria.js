@@ -1,5 +1,5 @@
 import { pool } from '../../../../config/database.js';
-import { manejar, normalizarId, noEncontrado, ValidationError } from '../../comun.js';
+import { manejar, normalizarId, noEncontrado, ValidationError, esUsuarioAdmin } from '../../comun.js';
 import { obtenerOrdenPorId } from './repository.js';
 
 const fechaValida = valor => {
@@ -48,6 +48,10 @@ WITH detalles AS (
       a.valores_anteriores->>'orden_trabajo_id' = $1::text OR a.valores_actuales->>'orden_trabajo_id' = $1::text OR
       a.valores_anteriores->>'id' IN (SELECT id FROM detalles) OR a.valores_actuales->>'id' IN (SELECT id FROM detalles)
     )) OR
+    (a.tabla_afectada = 'ordenes_trabajo_detalle_actividades' AND (
+      a.valores_anteriores->>'orden_trabajo_detalle_id' IN (SELECT id FROM detalles) OR
+      a.valores_actuales->>'orden_trabajo_detalle_id' IN (SELECT id FROM detalles)
+    )) OR
     (a.tabla_afectada = 'ordenes_trabajo_evidencias' AND (
       a.valores_anteriores->>'detalle_id' IN (SELECT id FROM detalles) OR a.valores_actuales->>'detalle_id' IN (SELECT id FROM detalles)
     )) OR
@@ -70,6 +74,9 @@ SELECT (SELECT count(*)::int FROM filtradas) AS total,
 
 export const listarAuditoriaOrden = manejar(async (req, res) => {
   if (!req.user?.id) throw new ValidationError('Se requiere una sesión válida', 401);
+  if (!esUsuarioAdmin(req.user)) {
+    throw new ValidationError('Solo un administrador puede consultar la auditoría', 403);
+  }
   const programaId = normalizarId('programaId', req.params.programaId);
   const programacionId = normalizarId('programacionId', req.params.programacionId);
   const otId = normalizarId('otId', req.params.otId);

@@ -13,7 +13,7 @@ mock.module('../src/modules/programas/programacion/ordenes/repository.js', { nam
 } });
 const { filtrosAuditoria, listarAuditoriaOrden } = await import('../src/modules/programas/programacion/ordenes/auditoria.js');
 beforeEach(() => { consultas = []; ordenExiste = true; fallo = false; });
-const request = extra => ({ user: { id: 6, rol: 'ti' }, params: { programaId: '1', programacionId: '20', otId: '10' }, query: {}, ...extra });
+const request = extra => ({ user: { id: 6, rol: 'admin' }, params: { programaId: '1', programacionId: '20', otId: '10' }, query: {}, ...extra });
 const response = () => ({ codigo: 200, status(codigo) { this.codigo = codigo; return this; }, json(cuerpo) { this.cuerpo = cuerpo; return this; } });
 test('normaliza filtros válidos', () => {
   assert.deepEqual(filtrosAuditoria({ busqueda: ' foto ', desde: '2026-10-01', hasta: '2026-10-10', limite: '50', desplazamiento: '25' }), { busqueda: 'foto', desde: '2026-10-01', hasta: '2026-10-10', limite: 50, desplazamiento: 25 });
@@ -39,4 +39,20 @@ test('oculta detalles internos de errores', async () => {
   fallo = true;
   const res = response(); await listarAuditoriaOrden(request(), res);
   assert.equal(res.codigo, 500); assert.equal(res.cuerpo.error, 'No se pudieron consultar los movimientos de la orden');
+});
+
+
+test('TI y supervisor no pueden consultar auditoría, incluso con IDs válidos', async () => {
+  for (const rol of ['ti', 'supervisor', '', 'auditor']) {
+    const res = response();
+    await listarAuditoriaOrden(request({ user: { id: 6, rol } }), res);
+    assert.equal(res.codigo, 403);
+    assert.equal(consultas.length, 0);
+  }
+});
+
+test('El alias administrador conserva acceso', async () => {
+  const res = response();
+  await listarAuditoriaOrden(request({ user: { id: 6, rol: ' Administrador ' } }), res);
+  assert.equal(res.codigo, 200);
 });

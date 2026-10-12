@@ -1,3 +1,4 @@
+import { listarChecklistOrden, editarActividadChecklist } from './checklist.js';
 import { listarAuditoriaOrden } from './auditoria.js';
 
 import {
@@ -64,6 +65,8 @@ router.get(
 );
 
 router.get('/:otId/auditoria', listarAuditoriaOrden);
+router.get('/:otId/checklist', listarChecklistOrden);
+router.patch('/:otId/checklist/:actividadId', editarActividadChecklist);
 
 // PATCH y no PUT: cada uno toca un subconjunto declarado de campos y deja el resto intacto.
 router.patch(

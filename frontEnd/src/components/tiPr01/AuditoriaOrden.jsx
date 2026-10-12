@@ -4,12 +4,25 @@ import { fechaConstancia } from './constanciaOt';
 
 const CATEGORIAS = {
   ordenes_trabajo: 'Orden de trabajo',
+  ordenes_trabajo_detalle_actividades: 'Actividad del checklist',
   ordenes_trabajo_detalle: 'Resultado por equipo',
   ordenes_trabajo_evidencias: 'Fotografías',
   programacion_mantenimiento: 'Programación de la visita'
 };
 
-export function AuditoriaOrden({ programaId, orden }) {
+export function AuditoriaOrden(props) {
+  let rol = '';
+  try {
+    rol = String(JSON.parse(localStorage.getItem('nexus_user') || 'null')?.rol || '')
+      .trim().toLowerCase();
+  } catch {
+    // Una sesión local inválida nunca habilita la auditoría.
+  }
+  if (rol !== 'admin' && rol !== 'administrador') return null;
+  return <PanelAuditoriaOrden {...props} />;
+}
+
+function PanelAuditoriaOrden({ programaId, orden }) {
   const [visible, setVisible] = useState(false);
   const [borrador, setBorrador] = useState({ busqueda: '', desde: '', hasta: '' });
   const [filtros, setFiltros] = useState({ busqueda: '', desde: '', hasta: '', desplazamiento: 0 });

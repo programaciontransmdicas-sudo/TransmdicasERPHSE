@@ -540,6 +540,8 @@ mock.module('../src/services/auditService.js', {
   }
 });
 
+mock.module('../src/modules/programas/programacion/ordenes/checklist.js', { namedExports: { validarChecklistAlCerrar: async () => {} } });
+
 const { cerrarOrdenTrabajo } = await import(
   '../src/modules/programas/programacion/ordenes/controller.js'
 );
