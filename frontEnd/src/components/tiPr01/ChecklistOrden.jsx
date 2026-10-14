@@ -77,7 +77,17 @@ export function ChecklistOrden({ programaId, orden, bloqueado = false, children 
 export function ChecklistEquipo({ detalle }) {
   const contexto = useContext(ChecklistContext);
   const [motivoAbierto, setMotivoAbierto] = useState({});
-  if (!contexto || !['CAMARAS', 'COPILOTO', 'RADIO_BASE'].includes(detalle.tipo_equipo)) return null;
+  if (
+  !contexto ||
+  ![
+    'CAMARAS',
+    'COPILOTO',
+    'RADIO_BASE',
+    'GPS'
+  ].includes(detalle.tipo_equipo)
+) {
+  return null;
+}
   const { datos, ediciones, error, cargando, guardando, mensaje, bloqueado,
     editable, cambiar, guardar, seleccionarTodos, actualizar } = contexto;
   const actividades = datos?.apartados?.find(a => a.detalle_id === detalle.id)?.actividades || [];

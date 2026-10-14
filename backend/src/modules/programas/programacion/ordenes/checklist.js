@@ -47,7 +47,13 @@ export const listarChecklistOrden = manejar(async (req, res) => {
     FROM ordenes_trabajo_detalle d
     JOIN programacion_mantenimiento_equipos e ON e.id=d.programacion_equipo_id
     LEFT JOIN ordenes_trabajo_detalle_actividades a ON a.orden_trabajo_detalle_id=d.id
-    WHERE d.orden_trabajo_id=$1 AND e.tipo_equipo IN ('CAMARAS','COPILOTO','RADIO_BASE')
+    WHERE d.orden_trabajo_id=$1
+  AND e.tipo_equipo IN (
+    'CAMARAS',
+    'COPILOTO',
+    'RADIO_BASE',
+    'GPS'
+  )
     GROUP BY d.id,e.tipo_equipo,e.nivel_mantenimiento ORDER BY d.id`, [otId]);
   res.setHeader('Cache-Control', 'no-store');
   return res.json({ orden_trabajo_id: otId, editable: orden.estado === 'ABIERTA', apartados: result.rows });
