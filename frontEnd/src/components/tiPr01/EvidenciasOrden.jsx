@@ -6,7 +6,8 @@ const MENSAJES = {
   SOLO_TI_SUBE_EVIDENCIA: 'Solo TI o un administrador pueden subir fotografías.',
   SOLO_TI_RETIRA_EVIDENCIA: 'Solo TI o un administrador pueden retirar fotografías de una orden abierta.',
   SOLO_ADMIN_RETIRA_EVIDENCIA: 'Solo un administrador puede retirar fotografías de una orden cerrada o anulada.',
-  ULTIMA_EVIDENCIA_OBLIGATORIA: 'No se puede retirar la última fotografía obligatoria de una orden cerrada.',
+  ULTIMA_EVIDENCIA_OBLIGATORIA:
+    'No se puede retirar esta fotografía porque el apartado quedaría por debajo del mínimo obligatorio.',
   MAXIMO_EVIDENCIAS_ALCANZADO: 'Este apartado ya tiene 4 fotografías activas.',
   FAMILIA_SIN_EVIDENCIA: 'Este equipo no admite fotografías.',
   ARCHIVO_NO_IMAGEN: 'Selecciona una imagen JPG, PNG o WEBP.',
@@ -162,14 +163,27 @@ export function EvidenciasOrden({ programaId, orden, bloqueado }) {
       {cargando && <p role="status">Cargando evidencias…</p>}
       {!cargando && error && <button type="button" className="ti-btn" disabled={ocupado} onClick={() => { setError(null); cargar().catch(setError); }}>Actualizar galería</button>}
       {galeria?.apartados?.map(apartado => {
-        const ultimaProtegida = estadoOrden === 'CERRADA' && apartado.exige_evidencia && apartado.activas <= 1;
+        const minimo =
+          apartado.minimo ??
+          (apartado.nivel_programado === 'M3' ? 3 : 1);
+
+        const ultimaProtegida =
+          estadoOrden === 'CERRADA' &&
+          apartado.exige_evidencia &&
+          apartado.activas <= minimo;
         return <div key={apartado.detalle_id} className="ti-section">
           <div className="ti-section-h"><b>{ETIQUETA_EQUIPO[apartado.tipo_equipo] || apartado.tipo_equipo}</b>
             {apartado.admite_evidencia && <span className="ti-right">{apartado.activas}/{apartado.maximo} fotografías</span>}
           </div>
           <div className="ti-section-b">
             {!apartado.admite_evidencia ? <p className="ti-smalltxt">Este equipo no admite evidencia fotográfica.</p> : <>
-              {apartado.exige_evidencia && <p className="ti-smalltxt">Se requiere al menos una fotografía para cerrar con este resultado.</p>}
+              {apartado.exige_evidencia && (
+                <p className="ti-smalltxt">
+                  Se requiere un mínimo de {minimo}{' '}
+                  fotografía{minimo === 1 ? '' : 's'} para cerrar
+                  este apartado.
+                </p>
+              )}
               {apartado.exige_observaciones && <p className="ti-smalltxt">Este resultado también requiere observaciones en el apartado.</p>}
               <div className="ti-evidence-grid">
                 {apartado.evidencias.map(evidencia => <figure key={evidencia.id}>
@@ -186,7 +200,13 @@ export function EvidenciasOrden({ programaId, orden, bloqueado }) {
                 <input type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" disabled={ocupado || bloqueado} onChange={event => subir(apartado, event)} />
               </label>}
               {apartado.activas >= apartado.maximo && <p className="ti-smalltxt">Se alcanzó el máximo de 4 fotografías.</p>}
-              {ultimaProtegida && <p className="ti-smalltxt">La última fotografía obligatoria debe conservarse.</p>}
+              {ultimaProtegida && (
+                <p className="ti-smalltxt">
+                  Deben conservarse al menos {minimo}{' '}
+                  fotografía{minimo === 1 ? '' : 's'}{' '}
+                  activa{minimo === 1 ? '' : 's'}.
+                </p>
+              )}
             </>}
           </div>
         </div>;

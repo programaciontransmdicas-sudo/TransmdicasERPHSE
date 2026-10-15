@@ -142,7 +142,9 @@ const Aviso = ({ error, onCerrar }) => {
             {ETIQUETA_EQUIPO[item.tipo_equipo] || item.tipo_equipo}:
             {' '}{item.falta === 'CHECKLIST'
               ? `${item.descripcion}: falta un motivo`
-              : item.falta === 'EVIDENCIA' ? 'falta una fotografía' : 'faltan observaciones'}
+              : item.falta === 'EVIDENCIA'
+                ? (item.motivo || 'faltan fotografías')
+                : 'faltan observaciones'}
           </li>
         ))}</ul>
       )}
@@ -247,7 +249,7 @@ const FormularioCabecera = ({ orden, guardando, onGuardar }) => {
           />
         </div>
 
-<Aviso error={local} onCerrar={() => setLocal(null)} />
+        <Aviso error={local} onCerrar={() => setLocal(null)} />
 
         <div className="ti-bar" style={{ marginBottom: 0 }}>
           <button
@@ -397,7 +399,7 @@ const FormularioDetalle = ({ detalle, estados, guardando, onGuardar }) => {
         />
       </div>
 
-<Aviso error={local} onCerrar={() => setLocal(null)} />
+      <Aviso error={local} onCerrar={() => setLocal(null)} />
 
       <div className="ti-bar" style={{ marginBottom: 0 }}>
         <button
@@ -1094,80 +1096,80 @@ const DetalleOrden = ({
 
       {/* EQUIPOS · un detalle por equipo previsto */}
       <ChecklistOrden key={`checklist-${orden.id}-${orden.estado}`} programaId={programaId} orden={orden} bloqueado={guardando || trabajando}>
-      <div className="ti-card" style={{ marginTop: 12 }}>
-        <h3>
-          Equipos de la orden
-          <span className="ti-right ti-smalltxt">
-            {orden.detalles?.total ?? detalles.length} equipo(s)
-          </span>
-        </h3>
+        <div className="ti-card" style={{ marginTop: 12 }}>
+          <h3>
+            Equipos de la orden
+            <span className="ti-right ti-smalltxt">
+              {orden.detalles?.total ?? detalles.length} equipo(s)
+            </span>
+          </h3>
 
-        <div className="ti-pad">
-          {detalles.length === 0 ? (
-            <div className="ti-empty">
-              No se encontraron equipos en esta orden. Vuelve a cargarla o contacta al área de TI.
-            </div>
-          ) : (
-            [...detalles]
-              .sort((a, b) => a.tipo_equipo.localeCompare(b.tipo_equipo))
-              .map(d => {
-                const clase = claseFamilia(d.tipo_equipo);
-                const anual = clase === 'ANUAL';
+          <div className="ti-pad">
+            {detalles.length === 0 ? (
+              <div className="ti-empty">
+                No se encontraron equipos en esta orden. Vuelve a cargarla o contacta al área de TI.
+              </div>
+            ) : (
+              [...detalles]
+                .sort((a, b) => a.tipo_equipo.localeCompare(b.tipo_equipo))
+                .map(d => {
+                  const clase = claseFamilia(d.tipo_equipo);
+                  const anual = clase === 'ANUAL';
 
-                return (
-                  <div className="ti-section" key={d.id}>
-                    <div className="ti-section-h">
-                      <b>{ETIQUETA_EQUIPO[d.tipo_equipo] ?? d.tipo_equipo}</b>
-                      <Nivel nivel={d.nivel_programado} anual={anual} />
-                      <Chip estado={d.estado} />
-                      {d.nivel_completado && d.nivel_completado !== d.nivel_programado && (
-                        <span className="ti-chip amber">
-                          completó hasta {d.nivel_completado}
+                  return (
+                    <div className="ti-section" key={d.id}>
+                      <div className="ti-section-h">
+                        <b>{ETIQUETA_EQUIPO[d.tipo_equipo] ?? d.tipo_equipo}</b>
+                        <Nivel nivel={d.nivel_programado} anual={anual} />
+                        <Chip estado={d.estado} />
+                        {d.nivel_completado && d.nivel_completado !== d.nivel_programado && (
+                          <span className="ti-chip amber">
+                            completó hasta {d.nivel_completado}
+                          </span>
+                        )}
+                        <span className="ti-right ti-smalltxt">
+                          {clase === 'HISTORICA' ? 'HISTÓRICA' : clase} · detalle #{d.id}
                         </span>
-                      )}
-                      <span className="ti-right ti-smalltxt">
-                        {clase === 'HISTORICA' ? 'HISTÓRICA' : clase} · detalle #{d.id}
-                      </span>
-                    </div>
+                      </div>
 
-                    <div className="ti-section-b">
-                      {editable ? (
-                        // La clave fuerza un remontaje cuando el backend devuelve el
-                        // detalle actualizado: el borrador local parte siempre del valor
-                        // persistido, nunca de lo que el usuario tecleó antes de guardar.
-                        <FormularioDetalle
-                          key={`${d.id}-${d.updated_at ?? ''}`}
-                          detalle={d}
-                          estados={estadosDetalle}
-                          guardando={guardando}
-                          onGuardar={onGuardarDetalle}
-                        />
-                      ) : (
-                        <>
-                          <ChecklistEquipo detalle={d} />
-                          {d.tipo_equipo === 'CAMARAS' && <div style={{ margin: '10px 0' }}>
-                            <b>Enlace del video: </b>
-                            {d.enlace_video && /^https?:\/\//i.test(d.enlace_video)
-                              ? <a href={d.enlace_video} target="_blank" rel="noopener noreferrer">Abrir video</a>
-                              : <span className="ti-smalltxt">Sin enlace registrado</span>}
-                          </div>}
-                          {d.observaciones
-                            ? <p style={{ margin: 0 }}>{d.observaciones}</p>
-                            : (
-                              <p className="ti-smalltxt" style={{ margin: 0 }}>
-                                Sin observaciones del técnico.
-                              </p>
-                            )}
+                      <div className="ti-section-b">
+                        {editable ? (
+                          // La clave fuerza un remontaje cuando el backend devuelve el
+                          // detalle actualizado: el borrador local parte siempre del valor
+                          // persistido, nunca de lo que el usuario tecleó antes de guardar.
+                          <FormularioDetalle
+                            key={`${d.id}-${d.updated_at ?? ''}`}
+                            detalle={d}
+                            estados={estadosDetalle}
+                            guardando={guardando}
+                            onGuardar={onGuardarDetalle}
+                          />
+                        ) : (
+                          <>
+                            <ChecklistEquipo detalle={d} />
+                            {d.tipo_equipo === 'CAMARAS' && <div style={{ margin: '10px 0' }}>
+                              <b>Enlace del video: </b>
+                              {d.enlace_video && /^https?:\/\//i.test(d.enlace_video)
+                                ? <a href={d.enlace_video} target="_blank" rel="noopener noreferrer">Abrir video</a>
+                                : <span className="ti-smalltxt">Sin enlace registrado</span>}
+                            </div>}
+                            {d.observaciones
+                              ? <p style={{ margin: 0 }}>{d.observaciones}</p>
+                              : (
+                                <p className="ti-smalltxt" style={{ margin: 0 }}>
+                                  Sin observaciones del técnico.
+                                </p>
+                              )}
 
-                        </>
-                      )}
+                          </>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })
-          )}
+                  );
+                })
+            )}
+          </div>
         </div>
-      </div>
 
       </ChecklistOrden>
       <EvidenciasOrden programaId={programaId} orden={orden} bloqueado={guardando} />

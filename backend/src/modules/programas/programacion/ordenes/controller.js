@@ -73,7 +73,8 @@ import {
   CODIGOS_TECNICO,
   MENSAJES,
   ESTADOS,
-  ESTADOS_DETALLE
+  ESTADOS_DETALLE,
+  minimoEvidenciasParaDetalle
 } from './service.js';
 
 import {
@@ -1259,16 +1260,16 @@ export const subirEvidencia = manejar(
           }
         };
       },
-      {
-        // LA REVALIDACION BAJO CERROJO del par rol + estado. Sustituye a exigirOrdenAbierta
-        // -la guarda generica de editandoLaOrden- por la propia de la evidencia, que
-        // responde lo mismo con un codigo que el cliente puede distinguir:
-        // 403 SOLO_TI_SUBE_EVIDENCIA y 409 ORDEN_NO_ABIERTA. Es el mismo mecanismo que usa
-        // el retiro, no uno nuevo.
-        //
-        // Aqui es donde se detecta que otra peticion cerro la orden mientras subiamos.
-        exigir: orden => exigirPuedeSubirEvidencia(orden, req.user)
-      }));
+        {
+          // LA REVALIDACION BAJO CERROJO del par rol + estado. Sustituye a exigirOrdenAbierta
+          // -la guarda generica de editandoLaOrden- por la propia de la evidencia, que
+          // responde lo mismo con un codigo que el cliente puede distinguir:
+          // 403 SOLO_TI_SUBE_EVIDENCIA y 409 ORDEN_NO_ABIERTA. Es el mismo mecanismo que usa
+          // el retiro, no uno nuevo.
+          //
+          // Aqui es donde se detecta que otra peticion cerro la orden mientras subiamos.
+          exigir: orden => exigirPuedeSubirEvidencia(orden, req.user)
+        }));
     } catch (error) {
       // editandoLaOrden ya hizo ROLLBACK -su propio catch- antes de relanzar. Aqui solo
       // queda lo que PostgreSQL no puede deshacer: el asset.
@@ -1354,6 +1355,8 @@ export const listarEvidencias = manejar(
         detalle_id: detalle.id,
         tipo_equipo: detalle.tipo_equipo,
         estado: detalle.estado,
+        nivel_programado: detalle.nivel_programado,
+        minimo: minimoEvidenciasParaDetalle(detalle),
         admite_evidencia: conFoto,
         exige_evidencia:
           conFoto &&
@@ -1634,7 +1637,7 @@ export const retirarEvidenciaDeOrden = manejar(
       },
       {
         // Ver el comentario de arriba: el permiso depende del estado y se decide dentro.
-        exigir: () => {}
+        exigir: () => { }
       }
     );
 

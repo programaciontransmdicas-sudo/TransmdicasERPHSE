@@ -966,6 +966,16 @@ export const ESTADOS_QUE_EXIGEN_OBSERVACIONES = [
 ];
 
 export const MAXIMO_EVIDENCIAS_ACTIVAS = 4;
+export const minimoEvidenciasParaDetalle = detalle => {
+  if (
+    !exigeEvidenciaFotografica(detalle.tipo_equipo) ||
+    !ESTADOS_QUE_EXIGEN_FOTO.includes(detalle.estado)
+  ) {
+    return 0;
+  }
+
+  return detalle.nivel_programado === 'M3' ? 3 : 1;
+};
 
 export const CODIGOS_EVIDENCIA = {
   FAMILIA_SIN_EVIDENCIA: 'FAMILIA_SIN_EVIDENCIA',
@@ -1178,16 +1188,14 @@ export const exigirPuedeRetirarEvidencia = ({
     return { regla: 'ANULADA_ADMIN' };
   }
 
-  // CERRADA. Aqui si protege la ultima evidencia obligatoria.
-  const obligatoria =
-    exigeEvidenciaFotografica(detalle.tipo_equipo) &&
-    ESTADOS_QUE_EXIGEN_FOTO.includes(detalle.estado);
+    // Una orden cerrada debe conservar su mínimo obligatorio.
+  const minimo = minimoEvidenciasParaDetalle(detalle);
 
-  if (obligatoria && activas <= 1) {
+  if (minimo > 0 && activas <= minimo) {
     throw new ValidationError(
-      'No se puede retirar la última evidencia obligatoria de este apartado. '
-      + `${detalle.tipo_equipo} quedó ${detalle.estado} y su sustento exige al menos una `
-      + 'fotografía.',
+      minimo === 1
+        ? 'No se puede retirar la última evidencia obligatoria de este apartado.'
+        : `Este apartado debe conservar al menos ${minimo} fotografías activas.`,
       409,
       CODIGOS_EVIDENCIA.ULTIMA_OBLIGATORIA
     );
@@ -1252,27 +1260,31 @@ export const validarEvidenciasParaCierre = detalles => {
   const incumplimientos = [];
 
   for (const detalle of detalles) {
-    const conFoto = exigeEvidenciaFotografica(detalle.tipo_equipo);
+    const minimo = minimoEvidenciasParaDetalle(detalle);
+    const recibidas = Number(
+      detalle.evidencias_activas ?? 0
+    );
 
-    const faltaFoto =
-      conFoto &&
-      ESTADOS_QUE_EXIGEN_FOTO.includes(detalle.estado) &&
-      detalle.evidencias_activas === 0;
-
-    if (faltaFoto) {
+    if (recibidas < minimo) {
       incumplimientos.push({
         detalle_id: detalle.id,
         tipo_equipo: detalle.tipo_equipo,
         estado: detalle.estado,
         falta: 'EVIDENCIA',
+        minimo,
+        recibidas,
+        faltantes: minimo - recibidas,
         motivo:
-          `${detalle.tipo_equipo} quedó ${detalle.estado} y no tiene ninguna evidencia `
-          + 'fotográfica activa. Se exige al menos una.'
+          minimo === 1 && recibidas === 0
+            ? `${detalle.tipo_equipo} no tiene ninguna evidencia fotográfica activa. Se exige al menos una.`
+            : `${detalle.tipo_equipo} requiere al menos ${minimo} fotografías activas; tiene ${recibidas}.`
       });
     }
 
     const faltaObservacion =
-      ESTADOS_QUE_EXIGEN_OBSERVACIONES.includes(detalle.estado) &&
+      ESTADOS_QUE_EXIGEN_OBSERVACIONES.includes(
+        detalle.estado
+      ) &&
       (
         typeof detalle.observaciones !== 'string' ||
         SOLO_BLANCO.test(detalle.observaciones)
@@ -1284,18 +1296,16 @@ export const validarEvidenciasParaCierre = detalles => {
         tipo_equipo: detalle.tipo_equipo,
         estado: detalle.estado,
         falta: 'OBSERVACIONES',
-        motivo: detalle.estado === 'PENDIENTE'
-          ? `${detalle.tipo_equipo} quedó PENDIENTE, que al cerrar significa que no se `
-            + 'ejecutó: hay que explicar por qué en sus observaciones.'
-          : `${detalle.tipo_equipo} quedó NO_APLICA: hay que explicar por qué no `
-            + 'correspondía en sus observaciones.'
+        motivo:
+          detalle.estado === 'PENDIENTE'
+            ? `${detalle.tipo_equipo} quedó PENDIENTE: hay que explicar por qué no se ejecutó en sus observaciones.`
+            : `${detalle.tipo_equipo} quedó NO_APLICA: hay que explicar por qué no correspondía en sus observaciones.`
       });
     }
   }
 
   return incumplimientos;
 };
-
 // El 409 estructurado del cierre. Lleva la lista completa para que el cliente pinte una
 // por apartado en vez de un parrafo.
 export const errorDeEvidenciasIncompletas = incumplimientos => {

@@ -892,6 +892,7 @@ export const obtenerDetallesParaValidarCierre = async (
             d.observaciones,
             d.enlace_video,
             e.tipo_equipo,
+            e.nivel_mantenimiento AS nivel_programado,
             (SELECT count(*)::int
                FROM ordenes_trabajo_evidencias ev
               WHERE ev.detalle_id = d.id
