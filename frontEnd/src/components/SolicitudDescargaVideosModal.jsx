@@ -1,3 +1,4 @@
+import { formatearPlaca } from '../utils/formatos';
 import React, { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 
@@ -402,7 +403,7 @@ export function SolicitudDescargaVideosModal({
                           textAlign: 'left'
                         }}
                       >
-                        <strong>{vehiculo.placa}</strong>
+                        <strong>{formatearPlaca(vehiculo.placa)}</strong>
 
                         <span style={{
                           color: 'var(--accent-color)',
@@ -467,7 +468,7 @@ export function SolicitudDescargaVideosModal({
                           fontWeight: '700'
                         }}
                       >
-                        {placa}
+                        {formatearPlaca(placa)}
 
                         <button
                           type="button"

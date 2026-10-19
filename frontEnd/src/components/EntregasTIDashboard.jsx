@@ -29,7 +29,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
   const [isNewPersonal, setIsNewPersonal] = useState(false);
   const [dniSearchStatus, setDniSearchStatus] = useState(null); // null | 'loading' | 'found' | 'not_found'
   const [formData, setFormData] = useState({
-    fecha: '', encargado: '', nombre: '', dni: '', cargo: '', operacion: '', cliente_operacion_id: '', condicion: 'NUEVO', equipo_tipo: '', marca: '', modelo: '', serie: '', laptop: '', mouse: '', cargador: '', motivo: '', observaciones: '', precio: '', tipo_movimiento: vista || 'Entrega'
+    fecha: '', encargado: '', nombre: '', dni: '', cargo: '', operacion: '', cliente_operacion_id: '', condicion: 'NUEVO', equipo_tipo: '', marca: '', modelo: '', serie: '', laptop: '', mouse: '', cargador: '', motivo: '', observaciones: '', tipo_movimiento: vista || 'Entrega'
   });
   const [actaFile, setActaFile] = useState(null);
   const [docUrlViewer, setDocUrlViewer] = useState(null);
@@ -151,9 +151,9 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
   });
 
   const filteredData = sortedData.filter(e => {
-    const matchesSearch = (e.nombre || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = (e.nombre || '').toLowerCase().replace(/-/g, '').includes(searchTerm.toLowerCase().replace(/-/g, '')) ||
       (e.dni || '').includes(searchTerm) ||
-      (e.equipo_tipo || '').toLowerCase().includes(searchTerm.toLowerCase());
+      (e.equipo_tipo || '').toLowerCase().replace(/-/g, '').includes(searchTerm.toLowerCase().replace(/-/g, ''));
     const itemTipo = e.tipo_movimiento || 'Entrega';
     const matchesVista = !vista || itemTipo === vista;
     const matchesCategoria = !categoriaFilter || (e.equipo_tipo || '').toUpperCase().includes(categoriaFilter.toUpperCase());
@@ -176,7 +176,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
 
   const openCreateModal = () => {
     setFormData({
-      fecha: getLocalDateString(), encargado: encargadoAutomatico, nombre: '', dni: '', cargo: '', operacion: '', cliente_operacion_id: '', condicion: 'NUEVO', equipo_tipo: '', marca: '', modelo: '', serie: '', laptop: '', mouse: '', cargador: '', motivo: '', observaciones: '', precio: '', tipo_movimiento: vista || 'Entrega'
+      fecha: getLocalDateString(), encargado: encargadoAutomatico, nombre: '', dni: '', cargo: '', operacion: '', cliente_operacion_id: '', condicion: 'NUEVO', equipo_tipo: '', marca: '', modelo: '', serie: '', laptop: '', mouse: '', cargador: '', motivo: '', observaciones: '', tipo_movimiento: vista || 'Entrega'
     });
     setActaFile(null);
     setIsEditing(false);
@@ -186,8 +186,10 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
   };
 
   const openEditModal = (item) => {
+    const datosEditables = { ...item };
+    delete datosEditables.precio;
     setFormData({
-      ...item,
+      ...datosEditables,
       fecha:
         item.fecha
           ? item.fecha.split('T')[0]
@@ -320,12 +322,13 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
             nombre_completo: formData.nombre,
             cargo: formData.cargo || '',
             area: formData.operacion || '',
+            cliente_operacion_id: Number(formData.cliente_operacion_id),
             estado: 'Activo'
           });
           // Refresh personal list quietly
           loadPersonal();
         } catch (perErr) {
-          console.warn('El personal ya existía o hubo error al auto-crearlo', perErr);
+          throw new Error(perErr.message || 'No se pudo registrar al trabajador');
         }
       }
 
@@ -661,7 +664,6 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
 
               <h4 style={{ margin: 0, color: 'var(--text-primary)' }}>Datos Finales</h4>
               <p style={{ margin: 0 }}><strong>Motivo:</strong> {selectedEntrega.motivo || '-'}</p>
-              <p style={{ margin: 0 }}><strong>Precio:</strong> {selectedEntrega.precio ? `$${selectedEntrega.precio}` : '-'}</p>
               <div style={{ backgroundColor: '#fff6e4', padding: '0.75rem', borderRadius: '0.5rem', marginTop: '0.5rem' }}>
                 <p style={{ margin: 0 }}><strong>Observaciones:</strong></p>
                 <p style={{ margin: '0.25rem 0 0 0', color: '#a8650a' }}>{selectedEntrega.observaciones || 'Ninguna.'}</p>
@@ -768,6 +770,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
                     <input
                       type="text"
                       name="nombre"
+                      pattern={isNewPersonal ? "[^,]+,[^,]+" : undefined}
                       value={formData.nombre}
                       onChange={handleFormChange}
                       placeholder="Nombre del trabajador"
@@ -861,14 +864,10 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>Motivo</label>
                   <input type="text" name="motivo" value={formData.motivo} onChange={handleFormChange} placeholder="Renovación, Nuevo Ingreso, etc." style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>Costo ($/S/)</label>
-                  <input type="number" step="0.01" name="precio" value={formData.precio} onChange={handleFormChange} placeholder="0.00" style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }} />
                 </div>
               </div>
 

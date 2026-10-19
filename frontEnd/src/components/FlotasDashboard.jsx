@@ -1,3 +1,4 @@
+import { formatearPlaca } from '../utils/formatos';
 import { useEffect, useState, useRef } from 'react';
 import { api, BASE_API_URL } from '../services/api';
 import toast from 'react-hot-toast';
@@ -409,7 +410,7 @@ export function FlotasDashboard({ permisos }) {
                     return (
                       <tr key={v.placa}>
                         <td className="inspection-plate-cell">
-                          {v.placa}
+                          {formatearPlaca(v.placa)}
                         </td>
                         <td><span className="inspection-operation-pill">{v.programa || 'Sin categoría'}</span></td>
                         <td>
@@ -770,7 +771,7 @@ function HistoryModal({ placa, onClose, onEdit, refreshTrigger, permisos }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <h3 style={{ fontSize: '1.3rem', fontWeight: 'bold', margin: 0 }}>Historial de Inspecciones</h3>
-            <p style={{ color: 'var(--accent-color)', fontWeight: '700', fontSize: '1rem', margin: '0.2rem 0 0 0' }}>Vehículo: {placa}</p>
+            <p style={{ color: 'var(--accent-color)', fontWeight: '700', fontSize: '1rem', margin: '0.2rem 0 0 0' }}>Vehículo: {formatearPlaca(placa)}</p>
           </div>
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
             <button onClick={descargarPdfHistorial} className="ui-button ui-button-danger"><UiIcon name="download" size={16} /> PDF directo</button>
@@ -931,7 +932,7 @@ function InspectionDetailModal({ insp, placa, onBack }) {
           <button onClick={onBack} style={{ background: 'none', border: '1px solid var(--border-color)', padding: '0.2rem 0.5rem', borderRadius: '0.3rem', cursor: 'pointer', marginRight: '1rem' }}>← Volver</button>
           <div style={{ flex: 1 }}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>Detalle de Inspección</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Placa: {placa} | Fecha: {insp.fecha} {insp.hora}</p>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Placa: {formatearPlaca(placa)} | Fecha: {insp.fecha} {insp.hora}</p>
           </div>
         </div>
 

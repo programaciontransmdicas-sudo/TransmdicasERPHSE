@@ -3,6 +3,8 @@ import {
 } from 'express';
 
 import {
+  opcionesFlota,
+  cambiarEstadoVehiculo,
   listarVehiculos,
   registrarVehiculo,
   editarVehiculo,
@@ -18,6 +20,9 @@ export const maestroRoutes =
 // ==========================================
 // VEHÍCULOS
 // ==========================================
+
+router.patch('/:placa/estado', cambiarEstadoVehiculo);
+maestroRoutes.get('/opciones', opcionesFlota);
 
 router.get(
   '/',

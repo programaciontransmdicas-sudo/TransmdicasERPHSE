@@ -639,6 +639,7 @@ function App() {
           )}
           {activeTab === "maestro" && hasAccess("flota") && (
             <MaestroFlotaDashboard
+              usuario={user}
               permisos={
                 isAdmin ? { ver: true, editar: true } : user?.permisos?.flota
               }
@@ -646,6 +647,7 @@ function App() {
           )}
           {activeTab === "personal" && hasAccess("personal") && (
             <DirectorioPersonal
+              usuario={user}
               permisos={
                 isAdmin ? { ver: true, editar: true } : user?.permisos?.personal
               }

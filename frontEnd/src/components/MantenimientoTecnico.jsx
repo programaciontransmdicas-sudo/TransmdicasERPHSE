@@ -1,3 +1,4 @@
+import { formatearPlaca } from '../utils/formatos';
 import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../services/api';
 import toast from 'react-hot-toast';
@@ -1193,7 +1194,7 @@ function MantenimientoCompleto({
   const headers = {
     programa: [
       'Programa de mantenimiento',
-      'Setiembre a diciembre 2026 · ocho quincenas'
+      ''
     ],
     unidades: [
       'Unidades',
@@ -1326,7 +1327,7 @@ function MantenimientoCompleto({
                   >
                     <td>
                       <strong className="m2-mono">
-                        {vehiculo.placa}
+                        {formatearPlaca(vehiculo.placa)}
                       </strong>
 
                       <div className="m2-small">
@@ -1516,7 +1517,7 @@ function MantenimientoCompleto({
           <div className="m2-ficha-head">
             <div>
               <div className="m2-ficha-plate">
-                {vehiculo.placa}
+                {formatearPlaca(vehiculo.placa)}
               </div>
 
               <div className="m2-small">
@@ -1537,7 +1538,7 @@ function MantenimientoCompleto({
                   estadoUnidadFicha(vehiculo.placa)
                 )}
               >
-                {estadoUnidadFicha(vehiculo.placa)}
+                {estadoUnidadFicha(formatearPlaca(vehiculo.placa))}
               </span>
             </div>
           </div>
@@ -2186,7 +2187,7 @@ function MantenimientoCompleto({
 
           <div>
             <div className="m2-exec-plate">
-              {orden.placa}
+              {formatearPlaca(orden.placa)}
             </div>
 
             <div className="m2-small">
@@ -2644,7 +2645,7 @@ function MantenimientoCompleto({
 
           <div>
             <div className="m2-exec-plate">
-              {orden.placa}
+              {formatearPlaca(orden.placa)}
             </div>
 
             <div className="m2-muted">
@@ -4609,7 +4610,7 @@ function MantenimientoCompleto({
       <div className="m2-head">
         <div>
           <h2>{header[0]}</h2>
-          <p>{header[1]}</p>
+          {header[1] && <p>{header[1]}</p>}
         </div>
 
       </div>

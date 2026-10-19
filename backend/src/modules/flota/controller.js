@@ -1,10 +1,12 @@
+import { esAdministrador, obtenerCatalogoClientesOperaciones, resolverClienteOperacion, restringirEdicionTI } from '../../services/catalogoService.js';
 import {
   buscarVehiculos,
   insertarVehiculo,
   obtenerVehiculoPorPlaca,
   actualizarVehiculo,
   eliminarVehiculo,
-  obtenerTractos
+  obtenerTractos,
+  cambiarActividadVehiculo
 } from './repository.js';
 
 import {
@@ -134,6 +136,7 @@ export const registrarVehiculo =
           vehiculoCreado
         );
     } catch (error) {
+      if ([400, 403].includes(error.status)) return res.status(error.status).json({ error: error.message });
       if (
         error instanceof
         FlotaValidationError
@@ -177,6 +180,8 @@ export const registrarVehiculo =
 export const editarVehiculo =
   async (req, res) => {
     try {
+      restringirEdicionTI(req, ['cliente_operacion_id', 'cliente', 'operacion']);
+      const relacion = await resolverClienteOperacion(req.body);
       const {
         placa,
         campos,
@@ -184,7 +189,7 @@ export const editarVehiculo =
       } =
         prepararActualizacionVehiculo(
           req.params.placa,
-          req.body
+          { ...req.body, ...relacion }
         );
 
       const valoresAnteriores =
@@ -221,6 +226,7 @@ export const editarVehiculo =
         valoresActuales
       );
     } catch (error) {
+      if ([400, 403].includes(error.status)) return res.status(error.status).json({ error: error.message });
       if (
         error instanceof
         FlotaValidationError
@@ -263,6 +269,7 @@ export const editarVehiculo =
 
 export const borrarVehiculo =
   async (req, res) => {
+    if (!esAdministrador(req)) return res.status(403).json({ error: 'TI no puede eliminar unidades. Utilice la opción de desactivar.' });
     const placa =
       normalizarPlaca(
         req.params.placa
@@ -299,6 +306,7 @@ export const borrarVehiculo =
           'Vehículo eliminado'
       });
     } catch (error) {
+      if ([400, 403].includes(error.status)) return res.status(error.status).json({ error: error.message });
       if (
         error.code ===
         '23503'
@@ -353,3 +361,22 @@ export const borrarVehiculo =
         });
     }
   };
+
+export const opcionesFlota = async (_req, res) => {
+  try { return res.json({ clientesOperaciones: await obtenerCatalogoClientesOperaciones() }); }
+  catch (error) { console.error('Error cargando catálogo de flota:', error); return res.status(500).json({ error: 'No se pudo cargar el catálogo' }); }
+};
+
+export const cambiarEstadoVehiculo = async (req, res) => {
+  const activo = req.body?.activo;
+  if (typeof activo !== 'boolean') return res.status(400).json({ error: 'Estado no válido' });
+  if (!esAdministrador(req) && (req.user?.rol !== 'ti' || activo !== false)) {
+    return res.status(403).json({ error: 'No tiene permiso para este cambio de estado' });
+  }
+  try {
+    const vehiculo = await cambiarActividadVehiculo(normalizarPlaca(req.params.placa), activo);
+    if (!vehiculo) return res.status(404).json({ error: 'Vehículo no encontrado' });
+    await logAction(req.user.id, `${activo ? 'Activó' : 'Desactivó'} el vehículo ${vehiculo.placa}`, 'vehiculos', req, null, vehiculo);
+    return res.json(vehiculo);
+  } catch (error) { console.error('Error cambiando estado del vehículo:', error); return res.status(500).json({ error: 'No se pudo cambiar el estado de la unidad' }); }
+};

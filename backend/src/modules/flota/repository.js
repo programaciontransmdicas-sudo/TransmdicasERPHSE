@@ -23,13 +23,13 @@ export const buscarVehiculos = async ({
   if (search) {
     whereClause += `
       AND (
-        LOWER(v.placa) LIKE $${paramIndex}
+        LOWER(REPLACE(v.placa, '-', '')) LIKE $${paramIndex}
         OR LOWER(COALESCE(v.operacion, ''))
            LIKE $${paramIndex}
       )
     `;
 
-    params.push(`%${search}%`);
+    params.push(`%${search.replace(/-/g, '')}%`);
     paramIndex++;
   }
 
@@ -80,6 +80,7 @@ export const buscarVehiculos = async ({
   const result = await pool.query(
     `SELECT
        v.placa,
+       v.activo,
        v.operacion AS programa,
        v.tipo_vehiculo,
        v.marca_tracto,
@@ -209,6 +210,7 @@ export const actualizarVehiculo =
           return null;
         }
 
+        if (campo === 'cliente_operacion_id') return Number(data[campo]);
         return (
           data[campo].trim() ||
           null
@@ -259,4 +261,9 @@ export const obtenerTractos = async ({
   );
 
   return result.rows;
+};
+
+export const cambiarActividadVehiculo = async (placa, activo) => {
+  const { rows } = await pool.query('UPDATE vehiculos SET activo = $2 WHERE placa = $1 RETURNING *', [placa, activo]);
+  return rows[0] || null;
 };

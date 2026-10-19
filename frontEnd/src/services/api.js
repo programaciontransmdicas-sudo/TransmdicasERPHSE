@@ -100,6 +100,17 @@ const query = (parametros = {}) => {
 };
 
 export const apiTiPr01 = {
+  descargarProgramaExcel: async (programaId, parametros = {}) => {
+    const respuesta = await fetchWithAuth(`${TI}/${programaId}/programacion/exportar-excel${query(parametros)}`);
+    if (!respuesta.ok) {
+      const datos = await respuesta.json().catch(() => ({}));
+      throw new Error(datos.error || 'No se pudo descargar el programa.');
+    }
+    if (!respuesta.headers.get('Content-Type')?.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')) {
+      throw new Error('El servidor no devolvió un archivo Excel válido.');
+    }
+    return respuesta.blob();
+  },
   listarChecklistOrden: (programaId, visitaId, otId, signal) =>
     pedirTi(`/${programaId}/programacion/${visitaId}/ordenes-trabajo/${otId}/checklist`, { signal }, 'No se pudo consultar el checklist'),
   editarActividadChecklist: (programaId, visitaId, otId, actividadId, datos) =>
@@ -249,6 +260,12 @@ export const apiTiPr01 = {
       },
       'Error al reprogramar la visita'
     ),
+
+  elevarNivelVisita: (programaId, visitaId, nivel) =>
+    pedirTi(`/${programaId}/programacion/${visitaId}/nivel`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nivel })
+    }, 'No se pudo actualizar el nivel de mantenimiento'),
 
   cancelarVisita: (programaId, visitaId, motivo) =>
     pedirTi(
@@ -518,6 +535,34 @@ export const api = {  // ==========================================
   // ==========================================
   // DIRECTORIO DE PERSONAL
   // ==========================================
+  getOpcionesPersonal: async () => {
+    const response = await fetchWithAuth(`${BASE_API_URL}/api/personal/opciones`);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'No se pudo cargar el catálogo');
+    return data;
+  },
+  getOpcionesFlota: async () => {
+    const response = await fetchWithAuth(`${BASE_API_URL}/api/maestro/opciones`);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'No se pudo cargar el catálogo');
+    return data;
+  },
+  cambiarEstadoPersonal: async (id, estado) => {
+    const response = await fetchWithAuth(`${BASE_API_URL}/api/personal/${id}/estado`, {
+      method: 'PATCH', body: JSON.stringify({ estado })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'No se pudo cambiar el estado');
+    return data;
+  },
+  cambiarEstadoVehiculo: async (placa, activo) => {
+    const response = await fetchWithAuth(`${BASE_API_URL}/vehiculos/${encodeURIComponent(placa)}/estado`, {
+      method: 'PATCH', body: JSON.stringify({ activo })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'No se pudo cambiar el estado');
+    return data;
+  },
   getPersonal: async () => {
     const response = await fetchWithAuth(`${BASE_API_URL}/api/personal`);
     if (!response.ok) throw new Error('Error al cargar personal');
@@ -529,7 +574,7 @@ export const api = {  // ==========================================
       method: 'POST',
       body: JSON.stringify(data),
     });
-    if (!response.ok) throw new Error('Error al registrar personal');
+    if (!response.ok) { const data = await response.json(); throw new Error(data.error || 'Error al registrar personal'); }
     return response.json();
   },
 
@@ -538,7 +583,7 @@ export const api = {  // ==========================================
       method: 'PUT',
       body: JSON.stringify(data),
     });
-    if (!response.ok) throw new Error('Error al actualizar personal');
+    if (!response.ok) { const data = await response.json(); throw new Error(data.error || 'Error al actualizar personal'); }
     return response.json();
   },
 

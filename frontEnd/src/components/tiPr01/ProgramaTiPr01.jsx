@@ -1,3 +1,4 @@
+import { formatearPlaca } from '../../utils/formatos';
 // TI-PR-01 · F1 · PANTALLA PROGRAMA
 // ============================================================================
 // Dos fuentes de verdad, separadas a propósito:
@@ -109,7 +110,7 @@ const Orientacion = ({ orientacion }) => {
 // No se recalcula nada en el cliente: ni qué quincena está libre, ni cuándo cierra una
 // quincena, ni el texto del aviso, ni cuál es la vía alternativa. El PATCH valida otra vez
 // contra el MISMO catálogo, así que lo que este modal ofrece es lo que el backend acepta.
-const ModalReprogramar = ({ programaId, visita, onCerrar, onConfirmar, trabajando }) => {
+export const ModalReprogramar = ({ programaId, visita, onCerrar, onConfirmar, trabajando }) => {
   const [catalogo, setCatalogo] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [fallo, setFallo] = useState(null);
@@ -184,7 +185,7 @@ const ModalReprogramar = ({ programaId, visita, onCerrar, onConfirmar, trabajand
                     >
                       {disponibles.map(d => (
                         <option key={d.quincena} value={d.quincena}>
-                          {quincenaDe(d.quincena)?.labelLargo ?? d.quincena}
+                          {quincenaDe(d.quincena)?.labelLargo ?? d.quincena}{d.desplazadas ? ` · desplaza ${d.desplazadas} visita(s)` : ''}
                         </option>
                       ))}
                     </select>
@@ -194,13 +195,11 @@ const ModalReprogramar = ({ programaId, visita, onCerrar, onConfirmar, trabajand
                     <label htmlFor="ti-rm">
                       Motivo de la reprogramación <b>(obligatorio)</b>
                     </label>
-                    <textarea
-                      id="ti-rm"
-                      rows={3}
-                      value={motivo}
-                      placeholder="Por qué se mueve la quincena de esta obligación"
-                      onChange={event => setMotivo(event.target.value)}
-                    />
+                    <select id="ti-rm" value={motivo} required disabled={trabajando}
+                      onChange={event => setMotivo(event.target.value)}>
+                      <option value="">Seleccione un motivo</option>
+                      {(catalogo.motivos ?? []).map(item => <option key={item} value={item}>{item}</option>)}
+                    </select>
                   </div>
                 </>
               ) : (
@@ -244,8 +243,8 @@ const ModalReprogramar = ({ programaId, visita, onCerrar, onConfirmar, trabajand
 
               {disponibles.length > 0 && (
                 <div className="ti-warnbox">
-                  La reprogramación mueve la quincena efectiva, que es la que corre el ciclo.
-                  El motivo queda anotado en la visita y en la historial de movimientos.
+                  Las visitas pendientes que ocupen el destino pasarán a la siguiente quincena.
+                  Los próximos niveles de esta unidad se recalcularán y el motivo quedará registrado.
                 </div>
               )}
 
@@ -294,7 +293,7 @@ const ModalCancelar = ({ visita, onCerrar, onConfirmar, trabajando }) => {
         <div className="ti-modal-h">Cancelar visita</div>
         <div className="ti-modal-b">
           <div className="ti-smalltxt">
-            {visita.unidad?.placa} · {qEfectiva?.labelLargo ?? visita.quincena_efectiva}
+            {formatearPlaca(visita.unidad?.placa)} · {qEfectiva?.labelLargo ?? visita.quincena_efectiva}
           </div>
 
           <div className="ti-badbox">
@@ -340,10 +339,11 @@ const ModalCancelar = ({ visita, onCerrar, onConfirmar, trabajando }) => {
 // ---------------------------------------------------------------------------
 // DRAWER DE UNA VISITA
 // ---------------------------------------------------------------------------
-const DrawerVisita = ({
+export const DrawerVisita = ({
   visita, fechaNegocio, onCerrar, onAccion, trabajando, onReprogramar,
-  onCrearOrden, onAbrirOrden
+  onCrearOrden, onAbrirOrden, onElevarNivel, puedeEditar
 }) => {
+  const [nivelElegido, setNivelElegido] = useState('');
   const st = estadoVisual(visita, fechaNegocio);
   const alcance = alcanceDe(visita);
   const qEfectiva = quincenaDe(visita.quincena_efectiva ?? visita.quincena_programada);
@@ -357,7 +357,7 @@ const DrawerVisita = ({
       <aside className="ti-drawer on" role="dialog" aria-modal="true" aria-label="Alcance de la visita">
         <div className="ti-drawer-head">
           <div>
-            <b className="ti-mono">{visita.unidad?.placa ?? '—'}</b>
+            <b className="ti-mono">{formatearPlaca(visita.unidad?.placa ?? '—')}</b>
             {' · '}{qEfectiva?.label ?? '—'}
             <div className="ti-smalltxt">
               Visita #{visita.id} · <Chip estado={st} />
@@ -375,12 +375,12 @@ const DrawerVisita = ({
           )}
 
           {visita.quincena_reprogramada && (
-            <div className="ti-warnbox">
+            <div className="ti-infobox">
               <b>Reprogramada</b> desde{' '}
               {quincenaDe(visita.quincena_programada)?.labelLargo} hacia{' '}
-              {quincenaDe(visita.quincena_reprogramada)?.labelLargo}. El ciclo usa la
-              quincena efectiva; la quincena de origen queda marcada en la matriz con{' '}
-              <b>RP</b> y no admite otra visita activa.
+              {quincenaDe(visita.quincena_reprogramada)?.labelLargo}.
+              La quincena de origen conserva la marca «Reprogramado».
+              <p style={{ marginBottom: 0 }}><b>Motivo de reprogramación:</b> {motivoDeVisita(visita) || 'Sin motivo registrado'}</p>
             </div>
           )}
 
@@ -423,6 +423,32 @@ const DrawerVisita = ({
               </p>
             </div>
           </div>
+
+          {puedeEditar && alcance.nivelRegular && (
+            <div className="ti-section">
+              <div className="ti-section-h"><b>Nivel de mantenimiento</b></div>
+              <div className="ti-section-b">
+                {acciones.puede_elevar_nivel ? (
+                  <>
+                    <div className="ti-field">
+                      <label htmlFor="ti-nivel-visita">Nivel a realizar</label>
+                      <select id="ti-nivel-visita" value={nivelElegido || alcance.nivelRegular}
+                        disabled={trabajando} onChange={e => setNivelElegido(e.target.value)}>
+                        {['M1','M2','M3'].filter(n => Number(n.slice(1)) >= Number(alcance.nivelRegular.slice(1)))
+                          .map(n => <option key={n} value={n}>{n}</option>)}
+                      </select>
+                    </div>
+                    <p className="ti-smalltxt">Puede subir el nivel antes de abrir la orden. Las siguientes intervenciones se ajustarán a las frecuencias del programa.</p>
+                    <button type="button" className="ti-btn primary"
+                      disabled={trabajando || !nivelElegido || nivelElegido === alcance.nivelRegular}
+                      onClick={() => onElevarNivel(nivelElegido)}>
+                      {trabajando ? 'Actualizando…' : 'Actualizar nivel y programa'}
+                    </button>
+                  </>
+                ) : <p className="ti-smalltxt">El nivel se conserva porque la visita tiene una orden o un resultado registrado.</p>}
+              </div>
+            </div>
+          )}
 
           {/* EQUIPOS: la evidencia de lo materializado */}
           <div className="ti-section">
@@ -606,13 +632,14 @@ export function ProgramaTiPr01({ permisos, onIrAOrden }) {
   const [fechaNegocio, setFechaNegocio] = useState(null);
   const [visitas, setVisitas] = useState([]);
   const [totalBackend, setTotalBackend] = useState(0);
-  const [paginas, setPaginas] = useState(1);
   // true si tras paginar seguimos por debajo de `total`: la matriz estaría incompleta y
   // hay que decirlo, no disimularlo.
   const [truncado, setTruncado] = useState(false);
 
   const [busqueda, setBusqueda] = useState('');
   const [estadoFiltro, setEstadoFiltro] = useState('');
+  const [operacionFiltro, setOperacionFiltro] = useState('');
+  const [exportando, setExportando] = useState(false);
   // Contador de recargas: cambiarlo vuelve a disparar el efecto. Permite que el botón
   // "Reintentar" y el refresco tras una acción reutilicen el mismo camino de carga.
   const [recarga, setRecarga] = useState(0);
@@ -669,7 +696,6 @@ export function ProgramaTiPr01({ permisos, onIrAOrden }) {
 
         setVisitas(data.programacion ?? []);
         setTotalBackend(data.total ?? 0);
-        setPaginas(data.paginas ?? 1);
         setTruncado(Boolean(data.truncado));
       } catch (e) {
         if (!vivo) return;
@@ -703,6 +729,7 @@ export function ProgramaTiPr01({ permisos, onIrAOrden }) {
         porUnidad.set(clave, {
           id: clave,
           placa: v.unidad?.placa ?? '—',
+          operacion: String(v.unidad?.operacion || '').trim().toUpperCase(),
           porQuincena: new Map(),
           // Quincena de ORIGEN -> visita que nacio ahi y se movio a otra. Es lo que
           // convierte un hueco mudo en «se reprogramo».
@@ -725,6 +752,11 @@ export function ProgramaTiPr01({ permisos, onIrAOrden }) {
       ) {
         porUnidad.get(clave).movidas.set(v.quincena_programada, v);
       }
+      for (const ajuste of v.ajustes ?? []) {
+        if (ajuste.tipo === 'REPROGRAMACION' && ajuste.origen !== efectiva) {
+          porUnidad.get(clave).movidas.set(ajuste.origen, { ...v, motivo_movimiento: ajuste.motivo });
+        }
+      }
     }
 
     // De cada grupo sale la visita que se pinta, y cuantas quedan debajo.
@@ -741,9 +773,11 @@ export function ProgramaTiPr01({ permisos, onIrAOrden }) {
     const texto = busqueda.trim().toUpperCase();
 
     return [...porUnidad.values()]
-      .filter(f => !texto || f.placa.toUpperCase().includes(texto))
+      .filter(f => !texto || f.placa.toUpperCase().replace(/-/g, '').includes(texto.replace(/-/g, '')))
+      .filter(f => !operacionFiltro || (operacionFiltro === '__SIN_OPERACION__'
+        ? !f.operacion : f.operacion === operacionFiltro))
       .sort((a, b) => a.placa.localeCompare(b.placa));
-  }, [visitas, busqueda]);
+  }, [visitas, busqueda, operacionFiltro]);
 
   // Elegibles: lo dice el BACKEND en acciones.puede_programar. Se indexan por quincena para
   // que "Seleccionar quincena" no tenga que recorrer la matriz otra vez.
@@ -808,10 +842,11 @@ export function ProgramaTiPr01({ permisos, onIrAOrden }) {
     return siguiente;
   });
 
-  const vencidas = useMemo(
-    () => visitas.filter(v => estadoVisual(v, fechaNegocio) === 'VENCIDA').length,
-    [visitas, fechaNegocio]
-  );
+  const operacionesDisponibles = useMemo(() => {
+    const valores = new Set(visitas.map(v => String(v.unidad?.operacion || '').trim().toUpperCase()));
+    if (operacionFiltro) valores.add(operacionFiltro === '__SIN_OPERACION__' ? '' : operacionFiltro);
+    return [...valores].sort((a, b) => a.localeCompare(b, 'es'));
+  }, [visitas, operacionFiltro]);
 
   // ------------------------------------------------------------------ acciones
   const refrescarVisita = async id => {
@@ -965,11 +1000,47 @@ export function ProgramaTiPr01({ permisos, onIrAOrden }) {
       );
       toast.success(`Visita reprogramada a ${quincenaDe(destino)?.label ?? destino}`);
       setReprogramando(false);
-      await refrescarVisita(visitaAbierta.id);
+      setVisitaAbierta(null);
+      recargar();
     } catch (e) {
       toast.error(e.message);
     } finally {
       setTrabajando(false);
+    }
+  };
+
+  const confirmarNivel = async nivel => {
+    if (!programa || !visitaAbierta || trabajando || !puedeEditar) return;
+    setTrabajando(true);
+    try {
+      await apiTiPr01.elevarNivelVisita(programa.id, visitaAbierta.id, nivel);
+      toast.success(`Nivel actualizado a ${nivel}. Programación recalculada.`);
+      setVisitaAbierta(null);
+      recargar();
+    } catch (e) { toast.error(e.message, { duration: 9000 }); }
+    finally { setTrabajando(false); }
+  };
+
+  const descargarExcel = async () => {
+    if (!programa || exportando) return;
+    setExportando(true);
+    try {
+      const blob = await apiTiPr01.descargarProgramaExcel(programa.id, {
+        busqueda: busqueda.trim(), estado: estadoFiltro, operacion: operacionFiltro
+      });
+      const url = window.URL.createObjectURL(blob);
+      const enlace = document.createElement('a');
+      enlace.href = url;
+      enlace.download = `TI-PR-01_${fechaNegocio || 'Programa'}.xlsx`;
+      document.body.appendChild(enlace);
+      enlace.click();
+      enlace.remove();
+      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+      toast.success('Programa descargado.');
+    } catch (e) {
+      toast.error(e.message || 'No se pudo descargar el programa.');
+    } finally {
+      setExportando(false);
     }
   };
 
@@ -1036,11 +1107,21 @@ export function ProgramaTiPr01({ permisos, onIrAOrden }) {
             <option key={e} value={e}>{etiquetaEstado(e)}</option>
           ))}
         </select>
-        <span className="ti-smalltxt">
-          {filas.length} unidad(es) · {visitas.length} de {totalBackend} visita(s)
-          {paginas > 1 && ` en ${paginas} páginas`}
-          {fechaNegocio && ` · día de negocio ${fechaNegocio}`}
-        </span>
+        <select value={operacionFiltro} onChange={event => {
+          setOperacionFiltro(event.target.value);
+          setSeleccion(new Set());
+        }} aria-label="Filtrar por operación">
+          <option value="">Todas las operaciones</option>
+          {operacionesDisponibles.map(operacion => (
+            <option key={operacion || '__SIN_OPERACION__'} value={operacion || '__SIN_OPERACION__'}>
+              {operacion || 'Sin operación'}
+            </option>
+          ))}
+        </select>
+        <button type="button" className="ti-btn primary" onClick={descargarExcel}
+          disabled={exportando || trabajando} aria-busy={exportando}>
+          {exportando ? 'Generando Excel…' : 'Descargar Excel TI-PR-01'}
+        </button>
       </div>
 
       {truncado && (
@@ -1084,11 +1165,6 @@ export function ProgramaTiPr01({ permisos, onIrAOrden }) {
       <div className="ti-card">
         <h3>
           Programación por quincena
-          <span className="ti-right">
-            {puedeEditar
-              ? 'clic en una celda para ver el alcance y las acciones'
-              : 'clic en una celda para ver el alcance'}
-          </span>
         </h3>
 
         {quincenas.length === 0 || filas.length === 0 ? (
@@ -1145,7 +1221,7 @@ export function ProgramaTiPr01({ permisos, onIrAOrden }) {
 
                   return (
                     <tr key={fila.id}>
-                      <td className="ti-plate ti-mono">{fila.placa}</td>
+                      <td className="ti-plate ti-mono">{formatearPlaca(fila.placa)}</td>
 
                       {quincenas.map(q => {
                         const celda = fila.porQuincena.get(q.id);
@@ -1166,13 +1242,13 @@ export function ProgramaTiPr01({ permisos, onIrAOrden }) {
                                   type="button"
                                   className="ti-cell movida"
                                   title={
-                                    `${fila.placa} · reprogramada desde ${q.labelLargo} `
+                                    `${formatearPlaca(fila.placa)} · reprogramada desde ${q.labelLargo} `
                                     + `hacia ${destino?.labelLargo ?? movida.quincena_efectiva}`
-                                    + ' · la visita activa está en su quincena de destino'
+                                    + ` · Motivo: ${movida.motivo_movimiento || motivoDeVisita(movida) || 'Sin motivo registrado'}`
                                   }
                                   onClick={() => setVisitaAbierta(movida)}
                                 >
-                                  RP<span className="ti-rp">→ {destino?.label ?? '?'}</span>
+                                  <span className="ti-movida-texto">Reprogramado</span><span className="ti-rp">→ {destino?.label ?? '?'}</span>
                                 </button>
                               </td>
                             );
@@ -1222,7 +1298,7 @@ export function ProgramaTiPr01({ permisos, onIrAOrden }) {
                                 className="ti-marca"
                                 checked={marcada}
                                 disabled={trabajando}
-                                aria-label={`Seleccionar ${fila.placa} ${q.label}`}
+                                aria-label={`Seleccionar ${formatearPlaca(fila.placa)} ${q.label}`}
                                 title="Seleccionar para confirmar en lote"
                                 onChange={() => alternar(visita.id)}
                               />
@@ -1234,6 +1310,7 @@ export function ProgramaTiPr01({ permisos, onIrAOrden }) {
                               onClick={() => setVisitaAbierta(visita)}
                             >
                               {textoCelda(alcance)}
+                              {fila.movidas.has(q.id) && <span className="ti-rastro-reprogramado">Reprogramado</span>}
                               {alcance.anuales.length > 0 && <i className="ti-an" />}
                             </button>
                           </td>
@@ -1290,19 +1367,15 @@ export function ProgramaTiPr01({ permisos, onIrAOrden }) {
           />
           <b>RP</b> · la visita nació en esa quincena y se reprogramó a otra
         </span>
-        <span>
-          M1 · M2 · M3 es el nivel regular común de cámaras, copiloto y radio base;{' '}
-          <b>AN</b> es una quincena con solo anualidad.
-        </span>
-        {vencidas > 0 && (
-          <span className="ti-chip red">{vencidas} visita(s) vencida(s) en total</span>
-        )}
       </div>
 
       {/* DRAWER */}
       {visitaAbierta && (
         <DrawerVisita
+          key={visitaAbierta.id}
           visita={visitaAbierta}
+          puedeEditar={puedeEditar}
+          onElevarNivel={confirmarNivel}
           fechaNegocio={fechaNegocio}
           trabajando={trabajando}
           onCerrar={() => { setVisitaAbierta(null); setReprogramando(false); }}
@@ -1428,4 +1501,18 @@ export function ProgramaTiPr01({ permisos, onIrAOrden }) {
       )}
     </div>
   );
+}
+
+// Las notas administrativas se apilan en observaciones; mostramos el último motivo.
+export function motivoReprogramacion(observaciones) {
+  const texto = String(observaciones || '');
+  const patron = /\[[^\]\n]*·\s*REPROGRAMACION\s*·[^\]\n]*\]\s*([\s\S]*?)(?=\n\s*\n\[|$)/g;
+  const coincidencias = [...texto.matchAll(patron)];
+  return coincidencias.at(-1)?.[1]?.trim() || '';
+}
+
+
+function motivoDeVisita(visita) {
+  const movimiento = (visita.ajustes ?? []).filter(a => a.tipo === 'REPROGRAMACION').at(-1);
+  return movimiento?.motivo || motivoReprogramacion(visita.observaciones);
 }

@@ -15,7 +15,8 @@ if (!archivo) {
 } else {
   try {
     const ruta = resolve(archivo);
-    const sql = await readFile(ruta, 'utf8');
+    const sql = (await readFile(ruta, 'utf8')).replace(/^\uFEFF/, '');
+    if (!sql.trim()) throw new Error('El archivo SQL está vacío.');
 
     const resultado = await pool.query(sql);
 

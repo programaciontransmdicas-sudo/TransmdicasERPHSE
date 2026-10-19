@@ -1,3 +1,4 @@
+import { formatearPlaca } from '../utils/formatos';
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import toast from 'react-hot-toast';
@@ -211,7 +212,7 @@ export function MantenimientoTecnico({ permisos }) {
                   <tr key={m.id}>
                     <td>{i + 1}</td>
                     <td>{vehiculo.tipo_vehiculo || '-'}</td>
-                    <td style={{ fontWeight: '600', color: 'var(--accent-color)' }}>{m.placa}</td>
+                    <td style={{ fontWeight: '600', color: 'var(--accent-color)' }}>{formatearPlaca(m.placa)}</td>
                     <td>{vehiculo.marca_tracto || '-'}</td>
                     <td>{vehiculo.modelo_tracto || '-'}</td>
                     <td>{vehiculo.anio_fabricacion || '-'}</td>
@@ -272,7 +273,7 @@ export function MantenimientoTecnico({ permisos }) {
                     required
                   >
                     <option value="">-- Seleccionar Vehículo --</option>
-                    {vehiculos.map(v => <option key={v.placa} value={v.placa}>{v.placa} ({v.programa})</option>)}
+                    {vehiculos.map(v => <option key={v.placa} value={v.placa}>{formatearPlaca(v.placa)} ({v.programa})</option>)}
                   </select>
                 </div>
                 <div>

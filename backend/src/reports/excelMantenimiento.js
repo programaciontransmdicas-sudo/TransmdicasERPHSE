@@ -1,3 +1,4 @@
+import { formatearPlaca } from '../services/formatos.js';
 import ExcelJS from 'exceljs';
 
 const borderAll = {
@@ -448,7 +449,7 @@ export const generarExcelMantenimiento =
           index + 1,
           row.tipo_vehiculo ||
             '',
-          row.placa,
+          formatearPlaca(row.placa),
           row.marca_tracto ||
             '',
           row.modelo_tracto ||

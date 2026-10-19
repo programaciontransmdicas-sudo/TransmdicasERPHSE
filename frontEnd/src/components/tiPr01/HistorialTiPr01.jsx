@@ -1,3 +1,4 @@
+import { formatearPlaca } from '../../utils/formatos';
 // TI-PR-01 · F3 · HISTORIAL
 // ============================================================================
 // Dos fuentes de verdad, separadas a propósito:
@@ -206,7 +207,7 @@ export function HistorialTiPr01({ onIrAOrden, soloLectura = false }) {
       const placa = String(h.visita.unidad?.placa ?? '').toUpperCase();
 
       const relacion = `${h.visita.unidad?.cliente || ''} ${h.visita.unidad?.operacion || ''}`.toUpperCase();
-      return placa.includes(texto)
+      return placa.replace(/-/g, '').includes(texto.replace(/-/g, ''))
         || (soloLectura && relacion.includes(texto))
         || (soloDigitos !== '' && h.orden && String(h.orden.id).includes(soloDigitos));
     });
@@ -435,7 +436,7 @@ export function HistorialTiPr01({ onIrAOrden, soloLectura = false }) {
                         {h.orden ? `#${h.orden.id}` : <span className="ti-smalltxt">—</span>}
                       </td>
 
-                      <td className="ti-mono">{h.visita.unidad?.placa ?? '—'}</td>
+                      <td className="ti-mono">{formatearPlaca(h.visita.unidad?.placa ?? '—')}</td>
                       {soloLectura && <>
                         <td>{h.visita.unidad?.cliente ?? '—'}</td>
                         <td>{h.visita.unidad?.operacion ?? '—'}</td>
@@ -562,7 +563,7 @@ export function HistorialTiPr01({ onIrAOrden, soloLectura = false }) {
                 <div className="ti-section" key={`obs-${h.visita.id}-${h.orden.id}`}>
                   <div className="ti-section-h">
                     <b className="ti-mono">
-                      #{h.orden.id} · {h.visita.unidad?.placa}
+                      #{h.orden.id} · {formatearPlaca(h.visita.unidad?.placa)}
                     </b>
                     <Chip
                       estado={ETIQUETA_HISTORIAL[h.tipo]}

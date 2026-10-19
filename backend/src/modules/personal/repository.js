@@ -1,11 +1,13 @@
 import { pool } from '../../config/database.js';
 import {validarDatosPersonal} from './service.js';
 
-export const obtenerPersonal = async () => {
+export const obtenerPersonal = async (incluirInactivos = false) => {
   const result = await pool.query(
     `SELECT *
      FROM personal
-     ORDER BY nombre_completo ASC`
+     WHERE $1::boolean OR LOWER(BTRIM(estado)) = 'activo'
+     ORDER BY nombre_completo ASC`,
+    [incluirInactivos]
   );
 
   return result.rows;
@@ -17,7 +19,10 @@ export const crearPersonal = async ({
   modalidad,
   area,
   cargo,
-  estado
+  estado,
+  cliente,
+  operacion,
+  cliente_operacion_id
 }) => {
   const result = await pool.query(
     `INSERT INTO personal (
@@ -26,7 +31,7 @@ export const crearPersonal = async ({
        modalidad,
        area,
        cargo,
-       estado
+       estado, cliente, operacion, cliente_operacion_id
      )
      VALUES (
        $1,
@@ -34,7 +39,7 @@ export const crearPersonal = async ({
        $3,
        $4,
        $5,
-       $6
+       $6, $7, $8, $9
      )
      RETURNING *`,
     [
@@ -43,7 +48,7 @@ export const crearPersonal = async ({
       modalidad,
       area,
       cargo,
-      estado || 'Activo'
+      estado || 'Activo', cliente, operacion, cliente_operacion_id
     ]
   );
 
@@ -92,7 +97,7 @@ export const eliminarPersonal=
 async id=>{
   const result = 
   await pool.query(
-    `DELETE FROM personal
+    `UPDATE personal SET estado = 'Inactivo'
     WHERE id = $1
     RETURNING *`,
     [id]

@@ -4,7 +4,8 @@ const CAMPOS_EDITABLES = [
   'modelo_tracto',
   'anio_fabricacion',
   'operacion',
-  'cliente'
+  'cliente',
+  'cliente_operacion_id'
 ];
 
 export class FlotaValidationError extends Error {
@@ -250,6 +251,7 @@ export const prepararActualizacionVehiculo =
     if (
       campos.some(
         campo =>
+          campo !== 'cliente_operacion_id' &&
           data[campo] !== null &&
           typeof data[campo] !==
             'string'

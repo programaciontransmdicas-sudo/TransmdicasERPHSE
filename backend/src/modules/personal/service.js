@@ -12,7 +12,10 @@ export const CAMPOS_PERSONAL = [
   'modalidad',
   'area',
   'cargo',
-  'estado'
+  'estado',
+  'cliente',
+  'operacion',
+  'cliente_operacion_id'
 ];
 
 export const validarDatosPersonal = (
@@ -37,6 +40,13 @@ export const validarDatosPersonal = (
     }
 
     const valor = datos[campo];
+    if (campo === 'cliente_operacion_id') {
+      if (!Number.isSafeInteger(Number(valor)) || Number(valor) <= 0) {
+        throw new PersonalValidationError('Seleccione una operación válida');
+      }
+      resultado[campo] = Number(valor);
+      continue;
+    }
 
     if (
       valor !== null &&
@@ -81,6 +91,16 @@ export const validarDatosPersonal = (
     );
   }
 
+  if (Object.hasOwn(resultado, 'nombre_completo')) {
+    const partes = String(resultado.nombre_completo || '').split(',');
+    if (partes.length !== 2 || partes.some(parte => !parte.trim())) {
+      throw new PersonalValidationError('Escriba el nombre con el formato APELLIDOS, NOMBRES');
+    }
+    resultado.nombre_completo = partes.map(parte => parte.trim().replace(/\s+/g, ' ').toLocaleUpperCase('es')).join(', ');
+  }
+  if (resultado.estado && !['Activo', 'Inactivo'].includes(resultado.estado)) {
+    throw new PersonalValidationError('El estado debe ser Activo o Inactivo');
+  }
   return resultado;
 };
 

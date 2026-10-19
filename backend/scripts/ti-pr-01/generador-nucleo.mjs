@@ -1,3 +1,5 @@
+import { crearReloj } from '../../src/modules/programas/programacion/ajustes/planificador.js';
+
 // =====================================================================================
 // TI-PR-01 · NUCLEO DEL GENERADOR DE PROGRAMACION
 // =====================================================================================
@@ -177,8 +179,14 @@ export async function cargarInsumos(cliente, programaId) {
   const { materializadas, sinQuincenaProgramada } = await cargarMaterializadas(cliente, programaId);
   const slots = await cargarSlots(cliente, programaId);
 
+  const { rows: ajustadas } = await cliente.query(`SELECT programa_unidad_id, max(id)::int AS revision
+    FROM programacion_mantenimiento_ajustes WHERE programa_id=$1 GROUP BY programa_unidad_id`, [programaId]);
+  const { rows: fecha } = await cliente.query(`SELECT (now() AT TIME ZONE 'America/Lima')::date::text AS fecha_negocio`);
+
   return {
-    programaId, refs,
+    programaId, refs, frecuencias: fr,
+    ajustadas: new Set(ajustadas.map(r => r.programa_unidad_id)),
+    revisionAjustes: new Map(ajustadas.map(r => [r.programa_unidad_id, r.revision])), fechaNegocio: fecha[0].fecha_negocio,
     APLICA,
     uni: new Map(todasU.map(r => [r.id, r])),
     conFase: new Set(refs.map(r => `${r.unidad}|${r.familia}`)),
@@ -293,6 +301,46 @@ export function versionDe(vers, q) {
   return v.length === 1 ? v[0] : null;
 }
 
+// Las unidades ajustadas continúan desde su plan vigente, sin reconstruir la cadencia
+// anterior ni rellenar el origen que se dejó señalado como Reprogramado. Este reloj es
+// exclusivamente de proyección: los ciclos reales y las anclas nunca se escriben aquí.
+export function continuarAjustadas(ins, desde, hasta) {
+  const obligaciones = [];
+  for (const unidad of ins.ajustadas ?? []) {
+    const referencias = ins.refs.filter(r => r.unidad === unidad).map(r => ({
+      tipo_equipo: r.familia, nivel_mantenimiento: r.nivel, quincena: aISO(r.q_ref)
+    }));
+    const reloj = crearReloj(referencias, ins.frecuencias ?? []);
+    const existentes = [...ins.slots.values()].filter(v => v.unidad === unidad)
+      .sort((a,b) => a.q_efectiva.localeCompare(b.q_efectiva));
+    const hoy = idx(ins.fechaNegocio ?? desde);
+    for (const visita of existentes) {
+      if (!['PROYECTADO','PROGRAMADO','REPROGRAMADO'].includes(visita.estado) || idx(visita.q_efectiva) < hoy) continue;
+      for (const [familia, nivel] of visita.nivelDe) reloj.cubrir(familia, nivel, idx(visita.q_efectiva));
+    }
+    const ultima = existentes.length ? idx(existentes.at(-1).q_efectiva) : hoy - 1;
+    const regulares = REGULARES.filter(f => ins.APLICA.get(`${unidad}|${f}`) === 'APLICA');
+    for (let i = Math.max(idx(desde), hoy, ultima + 1); i <= idx(hasta); i++) {
+      const nivel = reloj.debido(regulares, i);
+      if (nivel) for (const familia of regulares) {
+        reloj.validar(familia, nivel);
+        obligaciones.push({ unidad, familia, nivel, i, fase: 'PLAN_AJUSTADO' });
+        reloj.cubrir(familia, nivel, i);
+      }
+      for (const familia of ANUALES) {
+        if (ins.APLICA.get(`${unidad}|${familia}`) !== 'APLICA' || !reloj.debido([familia], i)) continue;
+        reloj.validar(familia, 'M3');
+        obligaciones.push({ unidad, familia, nivel: 'M3', i, fase: 'PLAN_AJUSTADO' });
+        reloj.cubrir(familia, 'M3', i);
+      }
+      if (obligaciones.some(o => o.unidad === unidad && o.i === i) && !versionDe(ins.vers, quin(i))) {
+        throw new Error(`No existe una versión aplicable para extender la unidad ${ins.uni.get(unidad)?.placa} a ${quin(i)}.`);
+      }
+    }
+  }
+  return obligaciones;
+}
+
 // =====================================================================================
 // EL ALGORITMO
 // =====================================================================================
@@ -307,6 +355,7 @@ export function generar(ins, desde, hasta) {
   // Este paso NO mira materializacion: es pura cadencia.
   const bruto = [], backlog = [];
   for (const r of ins.refs) {
+    if (ins.ajustadas?.has(r.unidad)) continue;
     let i = idx(aISO(r.q_ref)) + r.frec;
     while (i <= iFin) {
       const o = { unidad: r.unidad, familia: r.familia, nivel: r.nivel, i, fase: r.fase };
@@ -315,6 +364,8 @@ export function generar(ins, desde, hasta) {
     }
   }
 
+  bruto.push(...continuarAjustadas(ins, desde, hasta));
+
   // PASO 1-BIS · separar lo que YA tiene una fila que lo representa.
   // La clave usa quincena_programada -donde NACIO la obligacion-, nunca quincena_efectiva.
   // Lo ya materializado se reporta y NO continua: no llega al paso 2, asi que no puede
@@ -322,7 +373,7 @@ export function generar(ins, desde, hasta) {
   const yaMaterializado = [], pendiente = [];
   for (const o of bruto) {
     const q = quin(o.i);
-    const cob = materializadas.get(`${o.unidad}|${o.familia}|${o.nivel}|${q}`);
+    const cob = o.fase === 'PLAN_AJUSTADO' ? null : materializadas.get(`${o.unidad}|${o.familia}|${o.nivel}|${q}`);
     if (cob) yaMaterializado.push({
       ...o, quincena: q, motivo: 'OBLIGACION_YA_MATERIALIZADA',
       programacion_id: cob.programacion_id, estado_programacion: cob.estado,
@@ -383,6 +434,7 @@ export function generar(ins, desde, hasta) {
   }
   for (const v of visitas.values()) {
     v.quincena = quin(v.i);
+    v.revision_ajuste = ins.revisionAjustes?.get(v.unidad) ?? 0;
     v.nivel_regular = nivelRegular.get(`${v.unidad}|${v.i}`) ?? null;
     // Resumen de la visita: nivel_regular, NUNCA el maximo global. En una visita solo
     // anual no hay componente regular y se resume como 'M3', el unico nivel presente.
@@ -510,6 +562,15 @@ export async function materializar(cliente, visitas) {
   for (const v of visitas) {
     await cliente.query('SAVEPOINT visita');
     try {
+      // No materializar una fotografía leída antes de una reprogramación/cierre.
+      // La unidad se bloquea primero y la revisión se lee en una sentencia posterior:
+      // READ COMMITTED ve así el ajuste que pudo terminar mientras esperaba el bloqueo.
+      await cliente.query('SELECT id FROM programa_mantenimiento_unidades WHERE id=$1 FOR UPDATE', [v.unidad]);
+      const { rows: revisiones } = await cliente.query(`SELECT COALESCE(max(id),0)::int AS revision
+        FROM programacion_mantenimiento_ajustes WHERE programa_unidad_id=$1`, [v.unidad]);
+      if (revisiones[0].revision !== (v.revision_ajuste ?? 0)) {
+        throw new Error(`La programación de ${v.placa} cambió durante la generación. Vuelva a generar con los datos actuales.`);
+      }
       // Contrato posterior a 20261001_900: la cabecera NO lleva fecha_programada,
       // fecha_reprogramada ni nivel_mantenimiento. La quincena es la unica referencia
       // administrativa, y el nivel vive por equipo en

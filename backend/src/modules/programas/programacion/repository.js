@@ -41,6 +41,7 @@ const COLUMNAS = `
   p.programa_id,
   p.programa_unidad_id,
   u.placa,
+  (SELECT v.operacion FROM vehiculos v WHERE v.placa = u.placa) AS operacion,
   p.estado,
   p.quincena_programada::text   AS quincena_programada,
   p.quincena_reprogramada::text AS quincena_reprogramada,
@@ -48,6 +49,12 @@ const COLUMNAS = `
   p.fecha_ejecucion::text       AS fecha_ejecucion,
   p.version_programa_id,
   p.observaciones,
+  p.nivel_regular_forzado,
+  p.planificacion_ajustada,
+  COALESCE((SELECT jsonb_agg(jsonb_build_object(
+    'id', a.id, 'tipo', a.tipo, 'origen', a.quincena_anterior::text,
+    'destino', a.quincena_destino::text, 'motivo', a.motivo, 'fecha', a.fecha
+  ) ORDER BY a.id) FROM programacion_mantenimiento_ajustes a WHERE a.programacion_id=p.id), '[]'::jsonb) AS ajustes,
   p.created_at,
   p.updated_at`;
 

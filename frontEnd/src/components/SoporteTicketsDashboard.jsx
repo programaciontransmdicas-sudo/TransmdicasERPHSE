@@ -1,3 +1,4 @@
+import { formatearPlaca } from '../utils/formatos';
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import toast from 'react-hot-toast';
@@ -1124,7 +1125,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
-                  <span style={{ backgroundColor: '#eef3ff', color: '#2458e8', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold', fontSize: '0.75rem', border: '1px solid rgba(36,88,232,0.25)' }}>{ticket.placa || ('Sin placa · ' + ticket.operacion)}</span>
+                  <span style={{ backgroundColor: '#eef3ff', color: '#2458e8', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold', fontSize: '0.75rem', border: '1px solid rgba(36,88,232,0.25)' }}>{formatearPlaca(ticket.placa) || ('Sin placa · ' + ticket.operacion)}</span>
 
 
                 </div>
@@ -1282,7 +1283,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
             tickets.map(ticket => (
               <div key={ticket.id} style={{ padding: '1.5rem', backgroundColor: 'var(--card-bg)', borderRadius: '1rem', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-primary)' }}>{ticket.tipo_solicitud} {ticket.placa ? `- ${ticket.placa}` : ''}</h3>
+                  <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-primary)' }}>{ticket.tipo_solicitud} {formatearPlaca(ticket.placa) ? `- ${formatearPlaca(ticket.placa)}` : ''}</h3>
                   <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{ticket.descripcion}</p>
                   <div className="ui-ticket-meta"><span>{formatDate(ticket.fecha_creacion)}</span><span><UiIcon name="user" size={13} /> {ticket.nombre_completo}</span></div>
                 </div>
@@ -1606,7 +1607,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
                     <tr key={ticket.id} style={{ borderBottom: '1px solid #E5E7EB', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
                       <td style={{ padding: '1rem', fontWeight: 'bold', color: '#101b33' }}>#{ticket.id}</td>
                       <td style={{ padding: '1rem', color: '#4B5563', fontSize: '0.9rem' }}>{formatDate(ticket.fecha_creacion)}</td>
-                      <td style={{ padding: '1rem' }}><span className="badge" style={{ backgroundColor: '#eef3ff', color: '#2458e8', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold', fontSize: '0.75rem' }}>{ticket.placa || ('Sin placa · ' + ticket.operacion)}</span></td>
+                      <td style={{ padding: '1rem' }}><span className="badge" style={{ backgroundColor: '#eef3ff', color: '#2458e8', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold', fontSize: '0.75rem' }}>{formatearPlaca(ticket.placa) || ('Sin placa · ' + ticket.operacion)}</span></td>
                       <td style={{ padding: '1rem' }}>
                         <div style={{ fontWeight: '600', color: '#101b33', fontSize: '0.9rem' }}>{ticket.tipo_solicitud}</div>
                         <div className="ui-inline-detail"><UiIcon name="user" size={13} /> {ticket.nombre_completo || 'S/N'}</div>
@@ -1856,7 +1857,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
                 <div style={{ flex: 1, backgroundColor: 'var(--card-bg)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid #E5E7EB' }}>
                   <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '700', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Placa Asociada</span>
                   <span style={{ backgroundColor: '#eef3ff', color: '#2458e8', padding: '0.4rem 0.8rem', borderRadius: '0.5rem', fontWeight: 'bold', fontSize: '1.1rem', display: 'inline-block' }}>
-                    {selectedTicket.placa || 'No Registra'}
+                    {formatearPlaca(selectedTicket.placa || 'No Registra')}
                   </span>
                 </div>
                 <div style={{ flex: 1, backgroundColor: 'var(--card-bg)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid #E5E7EB' }}>

@@ -1,35 +1,10 @@
+import { formatearPlaca } from '../utils/formatos';
+import { ClienteOperacionFields } from './ClienteOperacionFields';
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
-const CLIENTES = [
-  'REPSOL',
-  'PRIMAX',
-  'SOLGAS',
-  'SAN JOSE',
-  'AUSTRAL'
-];
-
-const OPERACIONES = [
-  'LAS BAMBAS',
-  'SAN RAFAEL',
-  'GLP',
-  'INDUSTRIA',
-  'CARGAS DIVERSAS',
-  'QUELLAVECO',
-  'BATEAS',
-  'CONSTANCIA',
-  'CARAVELI',
-  'CACHIMAYO',
-  'PUCAMARCA',
-  'PAMPA DE COBRE',
-  'CERRO VERDE',
-  'RACIEMSA',
-  'ODEBRECHT',
-  'ANTAPACCAY',
-  'CRESPO',
-  'COESTI'
-];
-
-export function MaestroFlotaDashboard({ permisos }) {
+export function MaestroFlotaDashboard({ permisos, usuario }) {
+  const isAdmin = ['admin', 'administrador'].includes(String(usuario?.rol || '').toLowerCase());
+  const isTI = String(usuario?.rol || '').toLowerCase() === 'ti';
   const [tractos, setTractos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -66,7 +41,7 @@ export function MaestroFlotaDashboard({ permisos }) {
     ].some(valor =>
       String(valor ?? '')
         .toLowerCase()
-        .includes(searchTerm.toLowerCase())
+        .replace(/-/g, '').includes(searchTerm.toLowerCase().replace(/-/g, ''))
     )
   );
 
@@ -145,24 +120,31 @@ export function MaestroFlotaDashboard({ permisos }) {
                       onClick={() => setSelectedItem({ type: 'tracto', data: t })}
                       style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: i % 2 === 0 ? 'transparent' : 'var(--bg-hover)', cursor: 'pointer', transition: 'background 0.2s' }}
                     >
-                      <td style={{ padding: '1rem', fontWeight: 'bold' }}>{t.placa}</td>
+                      <td style={{ padding: '1rem', fontWeight: 'bold' }}>{formatearPlaca(t.placa)}</td>
                       <td style={{ padding: '1rem' }}>{t.operacion || '-'}</td>
-                      <td style={{ padding: '1rem' }}>{t.cliente || '-'}</td>
+                      <td style={{ padding: '1rem' }}>{t.cliente || '-'}{t.activo === false && <small style={{ display: 'block' }}>Inactiva</small>}</td>
                       <td style={{ padding: '1rem' }}>{t.marca_tracto || '-'} {t.modelo_tracto ? `/ ${t.modelo_tracto}` : ''}</td>
                       <td style={{ padding: '1rem' }}>
                         {t.anio_fabricacion ? String(t.anio_fabricacion).slice(0, 4) : '-'}
                       </td>
                       <td style={{ padding: '1rem', textAlign: 'center' }}>
-                        {(!permisos || permisos.editar !== false) && (
+                        {(permisos?.editar === true) && (
                           <>
                             <button onClick={(e) => { e.stopPropagation(); setEditItem({ type: 'tracto', data: t }); setIsEditModalOpen(true); }} style={{ background: 'none', border: 'none', color: '#2458e8', cursor: 'pointer', marginRight: '0.5rem' }}>✏️</button>
                             <button onClick={async (e) => {
                               e.stopPropagation();
-                              if (window.confirm(`¿Seguro que deseas eliminar el tracto ${t.placa}?`)) {
-                                try { await api.deleteVehiculo(t.placa); loadData(); }
+                              if (window.confirm(`¿Desea dejar inactiva la unidad ${t.placa}? Se conservará su historial.`)) {
+                                try { await api.cambiarEstadoVehiculo(t.placa, false); loadData(); }
                                 catch (err) { alert(err.message); }
                               }
-                            }} style={{ background: 'none', border: 'none', color: '#dc3b2a', cursor: 'pointer' }}>🗑️</button>
+                            }} style={{ background: 'none', border: 'none', color: '#dc3b2a', cursor: 'pointer' }} disabled={t.activo === false} title="Dejar inactivo">Desactivar</button>
+                            {isAdmin && <button title="Eliminar unidad" onClick={async e => {
+                              e.stopPropagation();
+                              if (window.confirm(`¿Eliminar definitivamente ${t.placa}? Solo será posible si no tiene historial relacionado.`)) {
+                                try { await api.deleteVehiculo(t.placa); loadData(); } catch (error) { alert(error.message); }
+                              }
+                            }}>Eliminar</button>}
+                            {isAdmin && t.activo === false && <button onClick={async e => { e.stopPropagation(); try { await api.cambiarEstadoVehiculo(t.placa, true); loadData(); } catch (error) { alert(error.message); } }}>Activar</button>}
                           </>
                         )}
                       </td>
@@ -235,7 +217,7 @@ export function MaestroFlotaDashboard({ permisos }) {
           <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem' }}>
             <div style={{ backgroundColor: 'var(--blue-bg)', padding: '1rem', borderRadius: '0.5rem', border: '1px solid rgba(36,88,232,0.18)', marginBottom: '2rem', textAlign: 'center' }}>
               <h1 style={{ fontSize: '2.5rem', margin: 0, color: 'var(--accent-color)' }}>
-                {selectedItem.data.placa}
+                {formatearPlaca(selectedItem.data.placa)}
               </h1>
               <p style={{ color: '#9ca3af', margin: '0.5rem 0 0' }}>
                 {selectedItem.data.marca_tracto || '-'} - {selectedItem.data.anio_fabricacion
@@ -266,6 +248,7 @@ export function MaestroFlotaDashboard({ permisos }) {
 
       {isEditModalOpen && (
         <EditModal
+            isTI={isTI}
           item={editItem}
           onClose={() => setIsEditModalOpen(false)}
           onSaved={() => { setIsEditModalOpen(false); loadData(); }}
@@ -285,7 +268,9 @@ function DetailBox({ label, value, full }) {
   );
 }
 
-function EditModal({ item, onClose, onSaved }) {
+function EditModal({ item, onClose, onSaved, isTI }) {
+  const [opciones, setOpciones] = useState([]);
+  useEffect(() => { api.getOpcionesFlota().then(data => setOpciones(data.clientesOperaciones || [])).catch(error => alert(error.message)); }, []);
   const [formData, setFormData] = useState({
     placa: item?.data?.placa || '',
     tipo_vehiculo: item?.data?.tipo_vehiculo || '',
@@ -298,7 +283,8 @@ function EditModal({ item, onClose, onSaved }) {
         ).slice(0, 4)
         : '',
     cliente: item?.data?.cliente || '',
-    operacion: item?.data?.operacion || ''
+    operacion: item?.data?.operacion || '',
+    cliente_operacion_id: item?.data?.cliente_operacion_id || ''
   });
 
   const [saving, setSaving] = useState(false);
@@ -352,7 +338,7 @@ function EditModal({ item, onClose, onSaved }) {
 
       await api.updateVehiculo(
         formData.placa,
-        payload
+        isTI ? { cliente_operacion_id: Number(formData.cliente_operacion_id) } : { ...payload, cliente_operacion_id: Number(formData.cliente_operacion_id) }
       );
 
       onSaved();
@@ -410,7 +396,7 @@ function EditModal({ item, onClose, onSaved }) {
               color: 'var(--text-primary)'
             }}
           >
-            Editar Tracto - {formData.placa}
+            Editar Tracto - {formatearPlaca(formData.placa)}
           </h2>
 
           <button
@@ -446,6 +432,7 @@ function EditModal({ item, onClose, onSaved }) {
             <Field
               label="Tipo de vehículo"
               name="tipo_vehiculo"
+              disabled={isTI}
               value={formData.tipo_vehiculo}
               onChange={handleChange}
             />
@@ -453,6 +440,7 @@ function EditModal({ item, onClose, onSaved }) {
             <Field
               label="Marca"
               name="marca_tracto"
+              disabled={isTI}
               value={formData.marca_tracto}
               onChange={handleChange}
             />
@@ -460,6 +448,7 @@ function EditModal({ item, onClose, onSaved }) {
             <Field
               label="Modelo"
               name="modelo_tracto"
+              disabled={isTI}
               value={formData.modelo_tracto}
               onChange={handleChange}
             />
@@ -483,6 +472,7 @@ function EditModal({ item, onClose, onSaved }) {
               <input
                 type="number"
                 name="anio_fabricacion"
+              disabled={isTI}
                 value={formData.anio_fabricacion}
                 onChange={handleChange}
                 min="1900"
@@ -497,21 +487,8 @@ function EditModal({ item, onClose, onSaved }) {
               />
             </div>
 
-            <SelectField
-              label="Cliente"
-              name="cliente"
-              value={formData.cliente}
-              onChange={handleChange}
-              options={CLIENTES}
-            />
-
-            <SelectField
-              label="Operación"
-              name="operacion"
-              value={formData.operacion}
-              onChange={handleChange}
-              options={OPERACIONES}
-            />
+            <ClienteOperacionFields opciones={opciones} cliente={formData.cliente} relacionId={formData.cliente_operacion_id}
+              onChange={cambios => setFormData(actual => ({ ...actual, ...cambios }))} />
           </form>
         </div>
 
@@ -564,11 +541,11 @@ function EditModal({ item, onClose, onSaved }) {
   );
 }
 
-function Field({ label, name, value, onChange }) {
+function Field({ label, name, value, onChange, disabled }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
       <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{label}</label>
-      <input type="text" name={name} value={value || ''} onChange={onChange} style={{ padding: '0.5rem', borderRadius: '0.25rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
+      <input disabled={disabled} type="text" name={name} value={value || ''} onChange={onChange} style={{ padding: '0.5rem', borderRadius: '0.25rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { formatearPlaca } from '../services/formatos.js';
 import PDFDocument from 'pdfkit-table';
 import fs from 'fs';
 import path from 'path';
@@ -300,7 +301,7 @@ export const generatePDF = async (pool, queryParams, res) => {
 
       // Cabecera de la tarjeta
       doc.rect(40, cardY, doc.page.width - 80, 25).fill('#F1F5F9');
-      doc.fillColor('#101B33').fontSize(11).font('Helvetica-Bold').text(`Inspección ID: ${insp.id}   |   Placa: ${insp.placa}`, 50, cardY + 7);
+      doc.fillColor('#101B33').fontSize(11).font('Helvetica-Bold').text(`Inspección ID: ${insp.id}   |   Placa: ${formatearPlaca(insp.placa)}`, 50, cardY + 7);
       doc.fontSize(9).font('Helvetica').text(`${formatDMY(insp.fecha)} ${insp.hora}`, 40, cardY + 7, { align: 'right', width: doc.page.width - 90 });
 
       doc.fillColor('#334155');

@@ -1,3 +1,4 @@
+import { formatearPlaca } from '../utils/formatos';
 // DASHBOARD COLORES V2 - 04/09/2026
 import { useEffect, useState, useRef } from "react";
 import { api, BASE_API_URL } from "../services/api";
@@ -908,7 +909,7 @@ export function ResumenDashboard() {
                 <span className="dashboard-activity-symbol">✓</span>
                 <div>
                   <strong>Inspección registrada</strong>
-                  <p>{item.placa} · {item.hora || "Hora no registrada"}</p>
+                  <p>{formatearPlaca(item.placa)} · {item.hora || "Hora no registrada"}</p>
                 </div>
               </div>
             ))}
@@ -917,7 +918,7 @@ export function ResumenDashboard() {
                 <span className="dashboard-activity-symbol is-ticket">#</span>
                 <div>
                   <strong>Ticket de soporte completado</strong>
-                  <p>{item.placa || "Sin placa"} · {item.tipo}</p>
+                  <p>{formatearPlaca(item.placa || "Sin placa")} · {item.tipo}</p>
                 </div>
               </div>
             ))}
@@ -1346,7 +1347,7 @@ export function ResumenDashboard() {
                         color: "var(--text-primary)",
                       }}
                     >
-                      Placa: {t.placa}
+                      Placa: {formatearPlaca(t.placa)}
                     </p>
                     <span
                       style={{
@@ -1437,7 +1438,7 @@ export function ResumenDashboard() {
                         letterSpacing: "1px",
                       }}
                     >
-                      {tkt.placa}
+                      {formatearPlaca(tkt.placa)}
                     </strong>
                     <p
                       style={{
@@ -1565,7 +1566,7 @@ export function ResumenDashboard() {
                   textShadow: "0 2px 5px rgba(0,0,0,0.3)",
                 }}
               >
-                {result.placa}
+                {formatearPlaca(result.placa)}
               </h3>
               <p
                 style={{
@@ -1616,7 +1617,7 @@ export function ResumenDashboard() {
                 <img
                   src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(`${window.location.origin}/?placa=${encodeURIComponent(result.placa)}`)}&color=0f172a&bgcolor=ffffff`}
                   alt={`QR de la unidad ${result.placa}`}
-                  title={`Abrir ficha de ${result.placa}`}
+                  title={`Abrir ficha de ${formatearPlaca(result.placa)}`}
                   style={{
                     borderRadius: "0.5rem",
                     border: "2px solid #e2e8f0",

@@ -1,8 +1,31 @@
+import { ClienteOperacionFields } from './ClienteOperacionFields';
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { UiIcon } from './UiIcon';
 
-export function DirectorioPersonal({ permisos }) {
+export function DirectorioPersonal({ permisos, usuario }) {
+  const rol = String(usuario?.rol || '').toLowerCase();
+  const isAdmin = ['admin', 'administrador'].includes(rol);
+  const isTI = rol === 'ti';
+  const [opciones, setOpciones] = useState([]);
+  const [cargandoCatalogo, setCargandoCatalogo] = useState(false);
+  const [errorCatalogo, setErrorCatalogo] = useState('');
+
+  const cargarCatalogo = async () => {
+    setCargandoCatalogo(true);
+    setErrorCatalogo('');
+    try {
+      const data = await api.getOpcionesPersonal();
+      const filas = Array.isArray(data?.clientesOperaciones) ? data.clientesOperaciones : [];
+      setOpciones(filas);
+      if (!filas.length) setErrorCatalogo('No hay clientes y operaciones activos disponibles.');
+    } catch (error) {
+      setOpciones([]);
+      setErrorCatalogo(error.message || 'No se pudieron cargar los clientes y operaciones.');
+    } finally {
+      setCargandoCatalogo(false);
+    }
+  };
   const [personal, setPersonal] = useState([]);
   const [inventarioTI, setInventarioTI] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,7 +42,7 @@ export function DirectorioPersonal({ permisos }) {
     modalidad: '',
     area: '',
     cargo: '',
-    estado: 'Activo'
+    estado: 'Activo', cliente: '', operacion: '', cliente_operacion_id: ''
   });
 
   const loadData = async () => {
@@ -29,7 +52,7 @@ export function DirectorioPersonal({ permisos }) {
         api.getPersonal(),
         api.getEntregas().catch(() => []) // Fallback in case IT module is empty or fails
       ]);
-      setPersonal(Array.isArray(dataPersonal) ? dataPersonal : []);
+      setPersonal((Array.isArray(dataPersonal) ? dataPersonal : []).filter(p => isAdmin || String(p.estado).toLowerCase() === 'activo'));
       setInventarioTI(Array.isArray(dataEntregas) ? dataEntregas : []);
     } catch (error) {
       console.error(error);
@@ -40,9 +63,11 @@ export function DirectorioPersonal({ permisos }) {
 
   useEffect(() => {
     loadData();
+    cargarCatalogo();
   }, []);
 
   const handleOpenModal = (person = null) => {
+    cargarCatalogo();
     if (person) {
       setEditingPersonal(person);
       setFormData({
@@ -51,7 +76,10 @@ export function DirectorioPersonal({ permisos }) {
         modalidad: person.modalidad || '',
         area: person.area || '',
         cargo: person.cargo || '',
-        estado: person.estado || 'Activo'
+        estado: person.estado || 'Activo',
+        cliente: person.cliente || '',
+        operacion: person.operacion || '',
+        cliente_operacion_id: person.cliente_operacion_id || opciones.find(o => o.cliente === person.cliente && o.operacion === person.operacion)?.id || ''
       });
     } else {
       setEditingPersonal(null);
@@ -61,7 +89,7 @@ export function DirectorioPersonal({ permisos }) {
         modalidad: '',
         area: '',
         cargo: '',
-        estado: 'Activo'
+        estado: 'Activo', cliente: '', operacion: '', cliente_operacion_id: ''
       });
     }
     setShowModal(true);
@@ -69,9 +97,13 @@ export function DirectorioPersonal({ permisos }) {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    if (cargandoCatalogo || errorCatalogo || !formData.cliente_operacion_id) {
+      alert(errorCatalogo || 'Seleccione un cliente y una operación antes de guardar.');
+      return;
+    }
     try {
       if (editingPersonal) {
-        await api.updatePersonal(editingPersonal.id, formData);
+        await api.updatePersonal(editingPersonal.id, isTI ? { cliente_operacion_id: Number(formData.cliente_operacion_id) } : formData);
       } else {
         await api.createPersonal(formData);
       }
@@ -83,21 +115,21 @@ export function DirectorioPersonal({ permisos }) {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('¿Estás seguro de que deseas eliminar este registro?')) {
+    if (window.confirm('¿Desea dejar a esta persona inactiva? Se conservará su historial.')) {
       try {
-        await api.deletePersonal(id);
+        await api.cambiarEstadoPersonal(id, 'Inactivo');
         loadData();
       } catch (error) {
-        alert('Error eliminando: ' + error.message);
+        alert('Error desactivando: ' + error.message);
       }
     }
   };
 
   const filteredPersonal = personal.filter(p => 
-    p?.nombre_completo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p?.dni?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p?.cargo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p?.area?.toLowerCase().includes(searchTerm.toLowerCase())
+    p?.nombre_completo?.toLowerCase().replace(/-/g, '').includes(searchTerm.toLowerCase().replace(/-/g, '')) ||
+    p?.dni?.toLowerCase().replace(/-/g, '').includes(searchTerm.toLowerCase().replace(/-/g, '')) ||
+    p?.cargo?.toLowerCase().replace(/-/g, '').includes(searchTerm.toLowerCase().replace(/-/g, '')) ||
+    p?.area?.toLowerCase().replace(/-/g, '').includes(searchTerm.toLowerCase().replace(/-/g, ''))
   );
 
   return (
@@ -111,7 +143,7 @@ export function DirectorioPersonal({ permisos }) {
             Gestión centralizada de colaboradores de la empresa.
           </p>
         </div>
-        {(!permisos || permisos.editar !== false) && (
+        {(permisos?.editar === true) && (
           <button 
             onClick={() => handleOpenModal()}
             className="ui-button ui-button-primary"
@@ -167,7 +199,7 @@ export function DirectorioPersonal({ permisos }) {
                     className="personal-table-row"
                   >
                     <td className="personal-dni">{p.dni}</td>
-                    <td className="personal-name">{p.nombre_completo}</td>
+                    <td className="personal-name">{p.nombre_completo}<small style={{ display: 'block', color: 'var(--text-secondary)' }}>{[p.cliente, p.operacion].filter(Boolean).join(' · ')}</small></td>
                     <td>{p.cargo || '-'}</td>
                     <td>{p.area || '-'}</td>
                     <td>
@@ -176,7 +208,7 @@ export function DirectorioPersonal({ permisos }) {
                       </span>
                     </td>
                     <td className="personal-actions-cell">
-                      {(!permisos || permisos.editar !== false) && (
+                      {(permisos?.editar === true) && (
                         <div className="personal-row-actions">
                           <button 
                             onClick={(e) => { e.stopPropagation(); handleOpenModal(p); }}
@@ -189,10 +221,10 @@ export function DirectorioPersonal({ permisos }) {
                           <button 
                             onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }}
                             className="ui-icon-button ui-icon-button-danger"
-                            title="Eliminar"
-                            aria-label={`Eliminar ${p.nombre_completo}`}
+                            title="Dejar inactivo" disabled={String(p.estado).toLowerCase() !== 'activo'}
+                            aria-label={`Dejar inactivo a ${p.nombre_completo}`}
                           >
-                            <UiIcon name="trash" size={16} />
+                            <UiIcon name="close" size={16} />
                           </button>
                         </div>
                       )}
@@ -380,9 +412,11 @@ export function DirectorioPersonal({ permisos }) {
 
             <form onSubmit={handleSave} style={{ display: 'grid', gap: '1rem', gridTemplateColumns: '1fr' }}>
               <div style={{ gridColumn: '1 / -1' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Nombres y Apellidos *</label>
+                <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Apellidos, Nombres *</label>
                 <input 
                   type="text" 
+                  disabled={Boolean(editingPersonal && isTI)}
+                  placeholder="APELLIDOS, NOMBRES" pattern="[^,]+,[^,]+"
                   value={formData.nombre_completo}
                   onChange={e => setFormData({...formData, nombre_completo: e.target.value})}
                   required
@@ -394,6 +428,7 @@ export function DirectorioPersonal({ permisos }) {
                 <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>DNI *</label>
                 <input 
                   type="text" 
+                  disabled={Boolean(editingPersonal && isTI)}
                   value={formData.dni}
                   onChange={e => setFormData({...formData, dni: e.target.value})}
                   required
@@ -407,26 +442,22 @@ export function DirectorioPersonal({ permisos }) {
                 <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Cargo</label>
                 <input 
                   type="text" 
+                  disabled={Boolean(editingPersonal && isTI)}
                   value={formData.cargo}
                   onChange={e => setFormData({...formData, cargo: e.target.value})}
                   style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
                 />
               </div>
 
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Área / Operación</label>
-                <input 
-                  type="text" 
-                  value={formData.area}
-                  onChange={e => setFormData({...formData, area: e.target.value})}
-                  style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
-                />
-              </div>
+              <ClienteOperacionFields opciones={opciones} cliente={formData.cliente} relacionId={formData.cliente_operacion_id}
+                cargando={cargandoCatalogo} error={errorCatalogo} onReintentar={cargarCatalogo}
+                onChange={cambios => setFormData(actual => ({ ...actual, ...cambios }))} />
 
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Modalidad</label>
                 <input 
                   type="text" 
+                  disabled={Boolean(editingPersonal && isTI)}
                   value={formData.modalidad}
                   onChange={e => setFormData({...formData, modalidad: e.target.value})}
                   style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
@@ -436,6 +467,7 @@ export function DirectorioPersonal({ permisos }) {
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Estado</label>
                 <select 
+                  disabled={!isAdmin}
                   value={formData.estado}
                   onChange={e => setFormData({...formData, estado: e.target.value})}
                   style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
@@ -444,6 +476,8 @@ export function DirectorioPersonal({ permisos }) {
                   <option value="Inactivo">Inactivo</option>
                 </select>
               </div>
+
+
 
               <div style={{ gridColumn: '1 / -1', marginTop: '1rem', display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
                 <button

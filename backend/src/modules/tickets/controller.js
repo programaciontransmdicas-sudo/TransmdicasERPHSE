@@ -1435,7 +1435,7 @@ export const createSupportTicket =
 
       const ticket =
         await insertarTicket({
-          placa: placaFinal,
+          placa: vehiculoAutorizado.placa,
           personaId: personaIdFinal,
           tipoSolicitud: tipoSolicitudFinal,
           descripcion: descripcionFinal,

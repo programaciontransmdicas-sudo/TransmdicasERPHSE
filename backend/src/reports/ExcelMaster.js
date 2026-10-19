@@ -1,3 +1,4 @@
+import { formatearPlaca } from '../services/formatos.js';
 import ExcelJS from 'exceljs';
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
@@ -177,7 +178,7 @@ export const generateMasterReport = async (pool, startDate, endDate, clienteOper
       const xlRow = ws.addRow({
         fecha: row.fecha,
         hora: row.hora,
-        placa: row.placa,
+        placa: formatearPlaca(row.placa),
         conductor: row.conductor,
         tablet: row.tablet,
         obs_tablet: row.observaciones,
@@ -316,7 +317,7 @@ export const generateMasterReport = async (pool, startDate, endDate, clienteOper
     const rowData = [
       i + 1,
       row.tipo_vehiculo || '',
-      row.placa,
+      formatearPlaca(row.placa),
       row.marca_tracto || '',
       row.modelo_tracto || '',
       row.anio_fabricacion || '',

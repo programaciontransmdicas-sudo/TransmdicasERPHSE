@@ -165,8 +165,7 @@ export const generarExcelEntregas =
       'MOUSE',
       'CARGADOR',
       'MOTIVO DE ENTREGA Y/O CAMBIO',
-      'OBSERVACION',
-      'PRECIO'
+      'OBSERVACION'
     ];
 
     const headerRow =
@@ -291,9 +290,6 @@ export const generarExcelEntregas =
               '',
 
             entrega.observaciones ||
-              '',
-
-            entrega.precio ||
               ''
           ]);
 

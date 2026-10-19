@@ -22,6 +22,9 @@ const respuesta = () => ({
 });
 
 const rutasRestringidas = [
+  '/api/programas-mantenimiento/90/programacion/exportar-excel',
+  '/api/programas-mantenimiento/90/programacion/1/nivel',
+  '/api/programas-mantenimiento/90/programacion/1/reprogramar',
   '/mantenimientos', '/mantenimientos/V0R-739',
   '/api/programas-mantenimiento', '/api/programas-mantenimiento/1',
   '/api/programas-mantenimiento/tecnicos',

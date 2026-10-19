@@ -103,6 +103,13 @@ export const quincenasDe = visitas => {
   for (const v of visitas) {
     const efectiva = v.quincena_efectiva ?? v.quincena_programada;
     if (efectiva) vistas.add(efectiva);
+    if (v.quincena_programada && v.quincena_programada !== efectiva) vistas.add(v.quincena_programada);
+    for (const ajuste of v.ajustes ?? []) {
+      if (ajuste.tipo === 'REPROGRAMACION') {
+        if (ajuste.origen) vistas.add(ajuste.origen);
+        if (ajuste.destino) vistas.add(ajuste.destino);
+      }
+    }
   }
 
   return [...vistas]
@@ -128,7 +135,7 @@ export const estadoVisual = (visita, fechaNegocio) => {
   const q = quincenaDe(efectiva);
   const cerrada = Boolean(q && fechaNegocio && q.fin < fechaNegocio);
 
-  if (cerrada) return 'VENCIDA';
+  if (cerrada && estado !== 'REPROGRAMADO') return 'VENCIDA';
   if ((visita.ordenes_trabajo?.abiertas ?? 0) > 0) return 'EN_PROCESO';
 
   return estado;

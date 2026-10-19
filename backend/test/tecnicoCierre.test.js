@@ -444,6 +444,7 @@ test('PRESENTAR · una OT abierta no tiene técnico ni cerrada_por: ambos null',
 let llamadas;
 let ordenEnBase;
 let elegibles;
+let falloRecalculo = false;
 
 mock.module('../src/modules/programas/programacion/ordenes/repository.js', {
   namedExports: {
@@ -542,6 +543,14 @@ mock.module('../src/services/auditService.js', {
 
 mock.module('../src/modules/programas/programacion/ordenes/checklist.js', { namedExports: { validarChecklistAlCerrar: async () => {} } });
 
+mock.module('../src/modules/programas/programacion/ajustes/service.js', { namedExports: {
+  recalcularTrasCierre: async (client, programaId, visitaId, usuarioId) => {
+    llamadas.push(['RECALCULAR', programaId, visitaId, usuarioId]);
+    if (falloRecalculo) throw new Error('Fallo de recálculo simulado');
+    return 1;
+  }
+} });
+
 const { cerrarOrdenTrabajo } = await import(
   '../src/modules/programas/programacion/ordenes/controller.js'
 );
@@ -550,6 +559,7 @@ beforeEach(() => {
   llamadas = [];
   ordenEnBase = orden();
   elegibles = [501];
+  falloRecalculo = false;
 });
 
 const solicitud = (usuario, cuerpo = {}) => ({
@@ -747,4 +757,20 @@ test('CIERRE · un campo sobrante sigue dando 400 antes de abrir transacción', 
   assert.equal(res.codigo, 400);
   assert.match(res.datos.error, /cerrada_por_id/);
   assert.deepEqual(transaccion(), [], 'no se abrió ninguna transacción');
+});
+
+
+test('CIERRE · unidad ajustada: cierra, recalcula desde los ciclos reales y luego confirma', async () => {
+  ordenEnBase.planificacion_unidad_ajustada = true;
+  const res = respuesta();await cerrarOrdenTrabajo(solicitud(CARLOS_TI), res);
+  assert.equal(res.codigo,200);
+  assert.deepEqual(solo('RECALCULAR'),[['RECALCULAR',90,12575,3]]);
+  assert.ok(llamadas.findIndex(l=>l[0]==='CERRAR') < llamadas.findIndex(l=>l[0]==='RECALCULAR'));
+  assert.deepEqual(transaccion(),['BEGIN','COMMIT']);
+});
+
+test('CIERRE · si no se puede recalcular, la transacción de cierre se revierte', async () => {
+  ordenEnBase.planificacion_unidad_ajustada = true;falloRecalculo = true;
+  const res = respuesta();await cerrarOrdenTrabajo(solicitud(CARLOS_TI), res);
+  assert.equal(res.codigo,500);assert.deepEqual(transaccion(),['BEGIN','ROLLBACK']);
 });

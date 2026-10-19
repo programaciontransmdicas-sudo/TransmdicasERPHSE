@@ -1,3 +1,4 @@
+import { formatearPlaca } from '../../utils/formatos';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cargarConstancia, codigoOrden, fechaConstancia } from './constanciaOt';
@@ -55,7 +56,7 @@ function Documento({ datos, programa, onCerrar }) {
           {anulada ? 'ORDEN ANULADA · Este documento no acredita la ejecución del mantenimiento.' : 'ORDEN ABIERTA · Reporte provisional de resultados registrados; no acredita el cierre.'}
         </p>}
         <dl className="ti-constancia-datos">
-          <div><dt>Unidad</dt><dd>{orden.unidad?.placa || 'No registrada'}</dd></div>
+          <div><dt>Unidad</dt><dd>{formatearPlaca(orden.unidad?.placa || 'No registrada')}</dd></div>
           <div><dt>Técnico ejecutor</dt><dd>{orden.tecnico?.nombre || (orden.tecnico ? `Personal #${orden.tecnico.id}` : 'Sin asignar')}</dd></div>
           <div><dt>Apertura</dt><dd>{fechaConstancia(orden.fecha_apertura)}</dd></div>
           <div><dt>Cierre</dt><dd>{fechaConstancia(orden.fecha_cierre)}</dd></div>

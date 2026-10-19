@@ -1,3 +1,4 @@
+import { formatearPlaca } from '../utils/formatos';
 import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 
@@ -270,7 +271,7 @@ export function SolicitudesDescargaVideosPanel({
                               fontWeight: '700'
                             }}
                           >
-                            {placa}
+                            {formatearPlaca(placa)}
                           </span>
                         ))}
                       </div>

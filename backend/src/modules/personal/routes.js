@@ -3,6 +3,8 @@ import {
 } from 'express';
 
 import {
+  opcionesPersonal,
+  cambiarEstadoPersonal,
   listarPersonal,
   registrarPersonal,
   editarPersonal,
@@ -10,6 +12,9 @@ import {
 } from './controller.js';
 
 const router = Router();
+
+router.get('/opciones', opcionesPersonal);
+router.patch('/:id/estado', cambiarEstadoPersonal);
 
 router.get(
   '/',

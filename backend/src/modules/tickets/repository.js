@@ -44,7 +44,7 @@ export const obtenerVehiculosTickets =
          BTRIM(v.operacion) AS operacion,
          v.cliente_operacion_id
        FROM vehiculos v
-       WHERE LOWER(
+       WHERE v.activo = TRUE AND LOWER(
          BTRIM(
            COALESCE(v.operacion, '')
          )
@@ -81,8 +81,9 @@ export const obtenerVehiculoTicketPorPlaca =
          v.operacion,
          v.cliente_operacion_id
        FROM vehiculos v
-       WHERE UPPER(BTRIM(v.placa)) =
-             UPPER(BTRIM($1))
+       WHERE v.activo = TRUE
+         AND REPLACE(UPPER(BTRIM(v.placa)), '-', '') =
+             REPLACE(UPPER(BTRIM($1)), '-', '')
          AND (
            $2::boolean = TRUE
            OR v.cliente_operacion_id =
@@ -108,7 +109,7 @@ export const obtenerPersonalTickets =
          nombre_completo,
          operacion
        FROM personal
-       WHERE estado = 'Activo'
+       WHERE LOWER(BTRIM(estado)) = 'activo'
        ORDER BY nombre_completo ASC`
     );
 
@@ -129,7 +130,7 @@ export const obtenerPersonaActivaPorId =
          operacion
        FROM personal
        WHERE id = $1
-         AND estado = 'Activo'
+         AND LOWER(BTRIM(estado)) = 'activo'
        LIMIT 1`,
       [personaId]
     );

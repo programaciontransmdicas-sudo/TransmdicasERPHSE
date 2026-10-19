@@ -77,7 +77,7 @@ export const obtenerPersonalPorDni =
          cargo,
          area
        FROM public.personal
-       WHERE dni = $1`,
+       WHERE dni = $1 AND LOWER(BTRIM(estado)) = 'activo'`,
       [dni]
     );
 
@@ -371,7 +371,7 @@ export const actualizarMovimiento =
          cargador = $15,
          motivo = $16,
          observaciones = $17,
-         precio = $18,
+         precio = COALESCE($18, precio),
          tipo_movimiento = $19,
          documento_url =
            COALESCE(

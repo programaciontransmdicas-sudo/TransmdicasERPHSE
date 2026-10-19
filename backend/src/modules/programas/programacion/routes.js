@@ -9,10 +9,12 @@ import {
   programar,
   programarLote,
   reprogramar,
+  elevarNivel,
   cancelar
 } from './controller.js';
 
 import ordenesRoutes from './ordenes/routes.js';
+import { descargarProgramaExcel } from './excel/controller.js';
 
 // mergeParams para recibir :programaId del router padre.
 const router = Router({
@@ -34,6 +36,9 @@ router.get(
   '/',
   listarProgramacion
 );
+
+// Literal antes de /:id: la descarga no es un identificador de visita.
+router.get('/exportar-excel', descargarProgramaExcel);
 
 router.get(
   '/:id',
@@ -72,12 +77,8 @@ router.patch(
   programarLote
 );
 
-// PATCH y no PUT: cada una toca una sola cosa. Programar escribe exclusivamente el estado;
-// reprogramar escribe exclusivamente quincena_reprogramada -y el estado que el modelo le
-// corresponde-; cancelar escribe exclusivamente el estado.
-//
-// programar es el acto humano que 014 exige para poder abrir una OT: convierte la
-// proyeccion del generador en una obligacion confirmada, sobre la MISMA fila.
+// Programar confirma la visita. Reprogramar y elevar nivel usan una transacción por
+// unidad: mueven las pendientes y recalculan la proyección sin alterar órdenes ni ciclos.
 router.patch(
   '/:id/programar',
   programar
@@ -87,6 +88,8 @@ router.patch(
   '/:id/reprogramar',
   reprogramar
 );
+
+router.patch('/:id/nivel', elevarNivel);
 
 router.patch(
   '/:id/cancelar',

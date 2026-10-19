@@ -1,3 +1,4 @@
+import { formatearPlaca } from '../../utils/formatos';
 // TI-PR-01 · F2.1 + F2.2 + F2.3 · PANTALLA ÓRDENES DE TRABAJO
 // ============================================================================
 // Dos fuentes de verdad, separadas a propósito:
@@ -671,7 +672,7 @@ const ModalCerrar = ({ orden, alcance, trabajando, onCerrarModal, onConfirmar })
             <tbody>
               <tr>
                 <th style={{ width: 150 }}>Unidad</th>
-                <td className="ti-mono">{orden.unidad?.placa ?? '—'}</td>
+                <td className="ti-mono">{formatearPlaca(orden.unidad?.placa ?? '—')}</td>
               </tr>
               <tr>
                 <th>Quincena efectiva</th>
@@ -950,7 +951,7 @@ const DetalleOrden = ({
               <tbody>
                 <tr>
                   <th style={{ width: 150 }}>Unidad</th>
-                  <td className="ti-mono">{orden.unidad?.placa ?? '—'}</td>
+                  <td className="ti-mono">{formatearPlaca(orden.unidad?.placa ?? '—')}</td>
                 </tr>
                 <tr>
                   <th>Estado</th>
@@ -1545,7 +1546,7 @@ export function OrdenesTiPr01({
       const placa = String(o.unidad?.placa ?? '').toUpperCase();
 
       // Un número suelto puede ser el id de la orden o parte de la placa: valen los dos.
-      return placa.includes(texto)
+      return placa.replace(/-/g, '').includes(texto.replace(/-/g, ''))
         || (soloDigitos !== '' && String(o.id).includes(soloDigitos));
     });
   }, [ordenes, busqueda, estadoFiltro]);
@@ -1774,7 +1775,7 @@ export function OrdenesTiPr01({
                 return (
                   <tr key={orden.id}>
                     <td className="ti-mono">#{orden.id}</td>
-                    <td className="ti-mono">{orden.unidad?.placa ?? '—'}</td>
+                    <td className="ti-mono">{formatearPlaca(orden.unidad?.placa ?? '—')}</td>
                     <td>{quincenaDe(orden.visita?.quincena_efectiva)?.label ?? '—'}</td>
                     <td><Alcance alcance={alcance} /></td>
                     <td className="ti-smalltxt">
@@ -1809,7 +1810,7 @@ export function OrdenesTiPr01({
                 return (
                   <tr key={orden.id}>
                     <td className="ti-mono">#{orden.id}</td>
-                    <td className="ti-mono">{orden.unidad?.placa ?? '—'}</td>
+                    <td className="ti-mono">{formatearPlaca(orden.unidad?.placa ?? '—')}</td>
                     <td
                       className="ti-mono"
                       title={orden.fecha_cierre ?? orden.fecha_apertura ?? ''}

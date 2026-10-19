@@ -1,11 +1,10 @@
+import { aplicarAjuste, destinosConDesplazamiento } from './ajustes/service.js';
 import {
   obtenerProgramacion,
   contarProgramacion,
   obtenerVisitaPorId,
   obtenerEquiposDeVisitas,
-  obtenerQuincenasOcupadasDeUnidad,
   programarVisita,
-  reprogramarVisita,
   cancelarVisita,
   obtenerVisitasParaLote,
   programarVisitasEnLote
@@ -17,28 +16,16 @@ import {
   prepararCancelacion,
   prepararLote,
   clasificarLote,
-  catalogoDeDestinos,
-  validarDestino,
-  orientacionSinDestinos,
   bloqueos,
   ESTADOS,
   ESTADO_CANCELADO,
   ESTADO_PROGRAMADO
 } from './service.js';
 
-// El dueno de esta constante es el modulo de ordenes: es su traduccion de
-// validar_apertura_ot. Se importa aqui, donde ya se orquestan las dos capas, y se pasa a
-// orientacionSinDestinos() como parametro, para no acoplar el service de programacion a su
-// hermano solo por dos cadenas.
-import {
-  ESTADOS_QUE_ADMITEN_OT
-} from './ordenes/service.js';
-
 import { pool } from '../../../config/database.js';
 
 import {
-  existePrograma,
-  obtenerVersionAplicable
+  existePrograma
 } from '../repository.js';
 
 import {
@@ -60,8 +47,7 @@ const ERRORES = {
     uq_programacion_unidad_quincena_efectiva: {
       status: 409,
       error:
-        'Esa unidad ya tiene una visita activa en la quincena de destino. '
-        + 'Cancela la que la ocupa o elige otra quincena.'
+        'La programación cambió mientras se guardaba. Actualice la pantalla y vuelva a intentarlo.'
     },
     chk_programacion_quincena_reprogramada: {
       status: 400,
@@ -159,41 +145,6 @@ const visitaDe = async (
 const autorDe = req =>
   req?.user?.username ?? null;
 
-// LOS DOS INSUMOS DEL CATALOGO DE DESTINOS, en una sola funcion para que el GET que lo
-// publica y el PATCH que lo aplica partan EXACTAMENTE de lo mismo:
-//
-//   · la version aplicable del programa y la fecha de negocio, de la MISMA consulta
-//   · las quincenas que otras visitas activas de esa unidad ya ocupan
-//
-// La regla vive en catalogoDeDestinos(), en el service. Aqui solo se leen los insumos.
-const destinosDe = async (
-  programaId,
-  visita,
-  cliente
-) => {
-  const {
-    fecha_negocio,
-    version
-  } = await obtenerVersionAplicable(
-    programaId,
-    cliente
-  );
-
-  const ocupadas =
-    await obtenerQuincenasOcupadasDeUnidad(
-      visita.programa_unidad_id,
-      visita.id,
-      cliente
-    );
-
-  return catalogoDeDestinos({
-    visita,
-    version,
-    fechaNegocio: fecha_negocio,
-    ocupadas
-  });
-};
-
 // Reparte la fila en la forma que publica la API: la visita, su unidad y, aparte, la
 // existencia de OT. No se mezcla el contenido de la OT: eso es otra etapa.
 const presentar = (
@@ -202,6 +153,7 @@ const presentar = (
 ) => {
   const {
     placa,
+    operacion,
     ot_total,
     ot_abiertas,
     ot_cerradas,
@@ -214,7 +166,8 @@ const presentar = (
     ...resto,
     unidad: {
       id: visita.programa_unidad_id,
-      placa
+      placa,
+      operacion: operacion || null
     },
     ordenes_trabajo: {
       total: ot_total,
@@ -223,7 +176,12 @@ const presentar = (
       anuladas: ot_anuladas,
       no_anuladas: ot_no_anuladas
     },
-    acciones: bloqueos(visita),
+    acciones: {
+      ...bloqueos(visita),
+      puede_reprogramar: ['PROYECTADO','PROGRAMADO','REPROGRAMADO'].includes(visita.estado) && Number(ot_total) === 0,
+      motivo_reprogramar: Number(ot_total) > 0 ? 'La visita tiene historial de órdenes.' : ['PROYECTADO','PROGRAMADO','REPROGRAMADO'].includes(visita.estado) ? null : 'La visita tiene un resultado histórico o está cancelada.',
+      puede_elevar_nivel: ['PROYECTADO','PROGRAMADO','REPROGRAMADO'].includes(visita.estado) && Number(ot_total) === 0
+    },
     equipos: {
       descripcion:
         'Evidencia de qué quedó materializado al crear la visita. No se recalcula con '
@@ -403,176 +361,45 @@ export const programar = manejar(
 // `reprogramable` viaja al lado a proposito: que existan destinos libres y que ESTA visita
 // admita reprogramarse son dos preguntas distintas -una visita en PROYECTADO no se
 // reprograma aunque le sobren quincenas-, y las dos salen del backend.
-export const destinosReprogramacion = manejar(
-  async (req, res) => {
-    const programaId = await programaDe(req);
-
-    const visita = await visitaDe(
-      programaId,
-      req
-    );
-
-    const catalogo = await destinosDe(
-      programaId,
-      visita
-    );
-
-    const permiso = bloqueos(visita);
-
-    return res.json({
-      programa_id: programaId,
-      visita: {
-        id: visita.id,
-        placa: visita.placa,
-        estado: visita.estado,
-        quincena_programada: visita.quincena_programada,
-        quincena_reprogramada: visita.quincena_reprogramada,
-        quincena_efectiva: visita.quincena_efectiva
-      },
-      reprogramable: {
-        puede: permiso.puede_reprogramar,
-        motivo: permiso.motivo_reprogramar
-      },
-      ...catalogo,
-
-      // F4.3 · ORIENTACION. Solo cuando no queda ningun destino: con destinos disponibles no
-      // hay nada que orientar y mandarla seria ruido. El cliente la pinta tal cual; no
-      // decide cual es la via correcta ni redacta el texto.
-      orientacion: catalogo.disponibles === 0
-        ? orientacionSinDestinos({
-          visita,
-          catalogo,
-          permiso,
-          estadosQueAdmitenOt: ESTADOS_QUE_ADMITEN_OT
-        })
-        : null
-    });
-  },
-  {
-    ...ERRORES,
-    mensajeGenerico:
-      'Error al obtener los destinos de reprogramación'
+export const destinosReprogramacion = manejar(async (req, res) => {
+  const programaId = await programaDe(req);
+  return res.json(await destinosConDesplazamiento(programaId, normalizarId('id', req.params.id)));
+}, {
+  ...ERRORES,
+  mensajeGenerico: 'Error al consultar las quincenas de destino'
+});
+export const reprogramar = manejar(async (req, res) => {
+  const programaId = await programaDe(req);
+  const {
+    quincena_reprogramada,
+    motivo
+  } = prepararReprogramacion(req.body);
+  return res.json(await aplicarAjuste({
+    programaId,
+    visitaId: normalizarId('id', req.params.id),
+    destino: quincena_reprogramada,
+    motivo,
+    req
+  }));
+}, {
+  ...ERRORES,
+  mensajeGenerico: 'No se pudo reprogramar la visita'
+});
+export const elevarNivel = manejar(async (req, res) => {
+  const programaId = await programaDe(req);
+  if (!req.body || Object.keys(req.body).some(k => k !== 'nivel') || !['M1', 'M2', 'M3'].includes(req.body.nivel)) {
+    throw new ValidationError('Seleccione M1, M2 o M3.');
   }
-);
-
-export const reprogramar = manejar(
-  async (req, res) => {
-    const programaId = await programaDe(req);
-
-    const antes = await visitaDe(
-      programaId,
-      req
-    );
-
-    const {
-      quincena_reprogramada,
-      motivo
-    } = prepararReprogramacion(req.body);
-
-    const permiso = bloqueos(antes);
-
-    if (!permiso.puede_reprogramar) {
-      throw new ValidationError(
-        permiso.motivo_reprogramar,
-        409
-      );
-    }
-
-    // El cortocircuito idempotente NO anota: no toca la base, así que tampoco deja una
-    // nota de algo que no pasó. El motivo sigue siendo obligatorio para que la petición sea
-    // válida -se exige arriba-, pero pedir otra vez la quincena en la que la visita ya está
-    // no es una decisión administrativa nueva.
-    if (
-      antes.quincena_reprogramada ===
-      quincena_reprogramada
-    ) {
-      return res.json({
-        ...presentar(
-          antes,
-          (await obtenerEquiposDeVisitas([antes.id]))
-            .get(antes.id)
-        ),
-        ya_estaba_en_esa_quincena: true
-      });
-    }
-
-    // F4.2 · LA PUERTA DEL DESTINO, antes del UPDATE.
-    //
-    // Va DESPUES del cortocircuito idempotente a proposito: pedir otra vez la quincena en
-    // la que la visita ya esta reprogramada sigue contestando `ya_estaba_en_esa_quincena`
-    // sin tocar la base, igual que antes. Si se validara primero, esa misma peticion
-    // chocaria con la regla de la quincena actual y pasaria de idempotente a 409.
-    //
-    // El catalogo es el MISMO que publica el GET, asi que la UI no puede ofrecer un destino
-    // que esto rechace. Lo que rechaza y por que:
-    //
-    //   DESTINO_FUERA_DE_PERIODO       no esta en el periodo de la version aplicable
-    //   DESTINO_PASADO                 la quincena ya cerro respecto a la fecha de negocio
-    //   DESTINO_OCUPADO                otra visita activa de la unidad la ocupa
-    //   DESTINO_ES_LA_QUINCENA_ACTUAL  es la quincena efectiva que ya tiene
-    //
-    // Y NO SUSTITUYE AL INDICE. uq_programacion_unidad_quincena_efectiva sigue intacto y
-    // sigue siendo la ultima defensa: entre esta lectura y el UPDATE cabe otra transaccion
-    // que ocupe el slot, y ese caso lo cierra el 23505, que se traduce como ya se traducia.
-    validarDestino(
-      quincena_reprogramada,
-      await destinosDe(programaId, antes)
-    );
-
-    const movida = await reprogramarVisita(
-      programaId,
-      antes.id,
-      quincena_reprogramada,
-      motivo,
-      autorDe(req)
-    );
-
-    if (!movida) {
-      // La puerta del WHERE no dejó pasar la fila: se vuelve a leer para decir por qué en
-      // vez de contestar un 500 sin explicación.
-      const ahora = await obtenerVisitaPorId(
-        programaId,
-        antes.id
-      );
-
-      throw new ValidationError(
-        bloqueos(ahora).motivo_reprogramar
-        ?? 'La visita no admite reprogramación en su estado actual',
-        409
-      );
-    }
-
-    const despues = await obtenerVisitaPorId(
-      programaId,
-      antes.id
-    );
-
-    await logAction(
-      req.user
-        ? req.user.id
-        : null,
-      `Reprogramó la visita ${antes.id} de ${antes.placa} a la quincena `
-      + `${quincena_reprogramada}. Motivo: ${motivo}`,
-      'programacion_mantenimiento',
-      req,
-      antes,
-      despues
-    );
-
-    return res.json(
-      presentar(
-        despues,
-        (await obtenerEquiposDeVisitas([antes.id]))
-          .get(antes.id)
-      )
-    );
-  },
-  {
-    ...ERRORES,
-    mensajeGenerico:
-      'Error al reprogramar la visita'
-  }
-);
+  return res.json(await aplicarAjuste({
+    programaId,
+    visitaId: normalizarId('id', req.params.id),
+    nuevoNivel: req.body.nivel,
+    req
+  }));
+}, {
+  ...ERRORES,
+  mensajeGenerico: 'No se pudo actualizar el nivel de mantenimiento'
+});
 
 export const cancelar = manejar(
   async (req, res) => {

@@ -3,6 +3,11 @@ import { beforeEach, mock, test } from 'node:test';
 
 // Se prueba el controlador y el servicio reales; solo se simulan servicios externos.
 // Estas pruebas no necesitan .env ni se conectan a Neon o Cloudinary.
+process.env.JWT_SECRET = 'clave_solo_para_pruebas_'.repeat(4);
+mock.module('../src/config/database.js', { namedExports: { pool: {
+  query: async () => { throw new Error('La prueba no debe consultar una base real'); }
+} } });
+
 let llamadas;
 let falloCarga;
 let falloRegistro;

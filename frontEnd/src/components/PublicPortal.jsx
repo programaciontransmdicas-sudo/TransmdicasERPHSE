@@ -1,3 +1,4 @@
+import { formatearPlaca } from '../utils/formatos';
 import React, { useState, useEffect } from 'react';
 import { BASE_API_URL } from '../services/api';
 import toast from 'react-hot-toast';
@@ -295,7 +296,7 @@ export function PublicPortal({ onAdminClick, openSupportOnLoad = false }) {
             {/* Cabecera del Carnet */}
             <div style={{ backgroundColor: result.estado_general === 'APROBADO' ? '#0e9f6e' : '#dc3b2a', color: 'white', padding: '2rem 1.5rem 1.5rem 1.5rem', textAlign: 'center', position: 'relative' }}>
               <div style={{ position: 'absolute', top: '1rem', left: '1rem', fontSize: '0.7rem', opacity: 0.8, letterSpacing: '2px', fontFamily: 'monospace' }}>ERPHSE</div>
-              <h3 style={{ fontSize: '2.5rem', margin: 0, fontWeight: '900', letterSpacing: '2px', textShadow: '0 2px 5px rgba(0,0,0,0.3)' }}>{result.placa}</h3>
+              <h3 style={{ fontSize: '2.5rem', margin: 0, fontWeight: '900', letterSpacing: '2px', textShadow: '0 2px 5px rgba(0,0,0,0.3)' }}>{formatearPlaca(result.placa)}</h3>
               <p style={{ margin: '0.5rem 0 0 0', fontSize: '1.25rem', fontWeight: '800', textTransform: 'uppercase', background: 'rgba(0,0,0,0.2)', display: 'inline-block', padding: '0.2rem 1rem', borderRadius: '2rem' }}>
                 ESTADO: {result.estado_general}
               </p>
@@ -312,7 +313,7 @@ export function PublicPortal({ onAdminClick, openSupportOnLoad = false }) {
                 <img
                   src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(`${window.location.origin}/?placa=${encodeURIComponent(result.placa)}`)}&color=0f172a&bgcolor=ffffff`}
                   alt={`QR de la unidad ${result.placa}`}
-                  title={`Abrir ficha de ${result.placa}`}
+                  title={`Abrir ficha de ${formatearPlaca(result.placa)}`}
                   style={{
                     borderRadius: '0.5rem',
                     border: '2px solid #e2e8f0',

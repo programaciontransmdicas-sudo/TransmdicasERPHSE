@@ -59,6 +59,8 @@ const ESQUEMA_ESPERADO = {
   ],
 
   tickets_unidades: [
+  'fecha_llegada_unidad',
+  'hora_llegada_unidad',
   'id',
   'placa',
   'persona_id',
@@ -125,6 +127,8 @@ solicitud_descarga_video_placas: [
   ],
 
   personal: [
+    'cliente',
+    'cliente_operacion_id',
     'id',
     'nombre_completo',
     'dni',
@@ -164,6 +168,7 @@ solicitud_descarga_video_placas: [
   ],
 
   vehiculos: [
+    'activo',
     'placa',
     'tipo_vehiculo',
     'marca_tracto',
@@ -287,6 +292,8 @@ solicitud_descarga_video_placas: [
 
   // quincena_efectiva es GENERATED ALWAYS sobre las otras dos: se exige porque el índice
   // único parcial de las visitas y todo el cálculo de fase dependen de ella.
+  programacion_mantenimiento_ajustes: ['id', 'programa_id', 'programa_unidad_id', 'programacion_id', 'tipo', 'quincena_anterior', 'quincena_destino', 'motivo', 'creado_por', 'cambios', 'fecha'],
+
   programacion_mantenimiento: [
     'id',
     'programa_id',
@@ -295,6 +302,8 @@ solicitud_descarga_video_placas: [
     'quincena_programada',
     'quincena_reprogramada',
     'quincena_efectiva',
+    'nivel_regular_forzado',
+    'planificacion_ajustada',
     'estado',
     'fecha_ejecucion',
     'observaciones'

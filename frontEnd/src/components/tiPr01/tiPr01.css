@@ -817,3 +817,11 @@
   .ti-checklist-task { flex-basis: 100%; }
   .ti-checklist-actions { padding-left: 27px; justify-content: flex-start; }
 }
+
+/* Reprogramaciones: información de planificación, sin alerta roja. */
+.ti-infobox { padding: 12px 14px; border: 1px solid #bfd4f6; border-radius: 8px; background: #edf4ff; color: #254e88; font-size: 13px; line-height: 1.6; }
+
+/* Origen de una reprogramación: indicación informativa, sin alerta roja. */
+.ti-cell.movida { color: #1d4ed8; background: #eff6ff; border-color: #bfdbfe; }
+.ti-movida-texto { font-size: 11px; font-weight: 600; white-space: normal; }
+.ti-rastro-reprogramado { display: block; color: #1d4ed8; font-size: 10px; margin-top: 3px; }

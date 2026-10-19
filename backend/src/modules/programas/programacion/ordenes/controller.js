@@ -1,3 +1,4 @@
+import { recalcularTrasCierre } from '../ajustes/service.js';
 import { validarChecklistAlCerrar } from './checklist.js';
 import { pool } from '../../../../config/database.js';
 
@@ -723,7 +724,8 @@ export const cerrarOrdenTrabajo = manejar(
       client,
       orden,
       otId,
-      programacionId
+      programacionId,
+      programaId
     }) => {
       const visitaAntes = await obtenerResultadoDeVisita(
         programacionId,
@@ -819,6 +821,9 @@ export const cerrarOrdenTrabajo = manejar(
         client
       );
 
+      if (orden.planificacion_unidad_ajustada) {
+        await recalcularTrasCierre(client, programaId, programacionId, req.user.id);
+      }
       const visitaDespues = await obtenerResultadoDeVisita(
         programacionId,
         client

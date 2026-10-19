@@ -407,9 +407,17 @@ export const obtenerOrdenParaEscritura = async (
   otId,
   cliente = pool
 ) => {
+  // Mismo orden de bloqueo que los ajustes de planificación: unidad antes de orden.
+  await cliente.query(`SELECT u.id FROM programa_mantenimiento_unidades u
+    JOIN programacion_mantenimiento p ON p.programa_unidad_id=u.id
+    JOIN ordenes_trabajo o ON o.programacion_id=p.id
+    WHERE p.programa_id=$1 AND p.id=$2 AND o.id=$3 FOR UPDATE OF u`,
+    [programaId, programacionId, otId]);
   const result = await cliente.query(
     `SELECT ${COLUMNAS},
-            ${UNIDAD}
+            ${UNIDAD},
+            EXISTS (SELECT 1 FROM programacion_mantenimiento_ajustes a
+              WHERE a.programa_unidad_id=u.id) AS planificacion_unidad_ajustada
        FROM ordenes_trabajo o
        JOIN programacion_mantenimiento p
          ON p.id = o.programacion_id

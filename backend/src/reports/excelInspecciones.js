@@ -1,3 +1,4 @@
+import { formatearPlaca } from '../services/formatos.js';
 import ExcelJS from 'exceljs';
 function formatDMY(valor) {
   if (!valor) return '';
@@ -201,7 +202,7 @@ to_char(i.fecha_hora, 'HH24:MI') AS hora, i.tablet, i.radio, i.camaras, i.img_ta
       inspecciones.forEach((insp, index) => {
         const row = worksheet.addRow({
           programa: insp.programa || 'Sin Operación',
-          placa: insp.placa,
+          placa: formatearPlaca(insp.placa),
           tipo: insp.tipo || 'N/A',
           estado_vehiculo: insp.estado_vehiculo || 'N/A',
           fecha: formatDMY(insp.fecha) || 'Sin Inspección',
@@ -257,7 +258,7 @@ to_char(i.fecha_hora, 'HH24:MI') AS hora, i.tablet, i.radio, i.camaras, i.img_ta
       inspecciones.forEach(insp => {
         worksheet.addRow({
           id: insp.id,
-          placa: insp.placa,
+          placa: formatearPlaca(insp.placa),
           programa: insp.programa,
           fecha: formatDMY(insp.fecha),
           hora: insp.hora,
