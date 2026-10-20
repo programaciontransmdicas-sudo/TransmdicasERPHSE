@@ -102,7 +102,8 @@ export const contextoTicket =
 
     const accesoTotal =
       rol === 'admin' ||
-      rol === 'ti';
+      rol === 'ti' ||
+      (rol === 'supervisor' && ['GET', 'HEAD'].includes(req.method));
 
     const clienteOperacionIds =
       accesoTotal
@@ -113,6 +114,7 @@ export const contextoTicket =
 
     if (
       rol === 'supervisor' &&
+      !accesoTotal &&
       clienteOperacionIds.length === 0
     ) {
       throw Object.assign(

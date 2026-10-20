@@ -104,7 +104,7 @@ export const authorizeRequest = (
   });
 }
 
-  // El permiso de lectura del supervisor se limita a un único historial filtrado.
+  // El supervisor consulta el historial general de mantenimiento sin editarlo.
   // También bloquea las rutas legacy, los detalles por ID y todas las escrituras.
   if (
     String(req.user?.rol || '').trim().toLowerCase() === 'supervisor' &&
@@ -113,7 +113,7 @@ export const authorizeRequest = (
       /^\/api\/programas-mantenimiento\/historial-supervisor\/?$/.test(req.path))
   ) {
     return res.status(403).json({
-      error: 'Solo puedes consultar el historial de tus clientes y operaciones asignados'
+      error: 'Solo puedes consultar el historial de mantenimientos'
     });
   }
 

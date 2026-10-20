@@ -214,7 +214,8 @@ export const tieneAccesoTotalFlota =
     return (
       rol === 'admin' ||
       rol === 'administrador' ||
-      rol === 'ti'
+      rol === 'ti' ||
+      (rol === 'supervisor' && ['GET', 'HEAD'].includes(req.method))
     );
   };
 

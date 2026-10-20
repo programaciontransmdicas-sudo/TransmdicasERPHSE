@@ -69,20 +69,22 @@ test('Admin y TI mantienen lectura y edición de mantenimiento', () => {
   }
 });
 
-test('No se permite consultar sin asignaciones ni imponer el alcance en filtros', () => {
-  assert.throws(() => validarConsultaHistorial({ ...supervisor, clienteOperacionIds: [] }), e => e.status === 403);
+test('Supervisor consulta sin asignaciones; otros roles y filtros inválidos se rechazan', () => {
+  assert.doesNotThrow(() => validarConsultaHistorial({ ...supervisor, clienteOperacionIds: [] }));
+  assert.doesNotThrow(() => validarConsultaHistorial({ id: 8, rol: 'supervisor' }));
+  assert.throws(() => validarConsultaHistorial({ ...supervisor, id: null }), e => e.status === 403);
   assert.throws(() => validarConsultaHistorial({ ...supervisor, rol: 'ti' }), e => e.status === 403);
   for (const query of [{ clienteOperacionIds: '99' }, { usuario_id: '99' }, { programa_id: '1' }, { limite: '0' }, { limite: '1001' }, { desde: '2026-02-30' }, { desde: '2026-10-16', hasta: '2026-10-01' }]) {
     assert.throws(() => validarConsultaHistorial(supervisor, query), e => e.status === 400);
   }
 });
 
-test('El controlador usa el usuario autenticado y devuelve historial vacío sin datos ajenos', async () => {
+test('El controlador consulta todas las unidades con filtros de fecha y paginación', async () => {
   filas = { total: 0, visitas: [] };
   const res = respuesta();
   await listarHistorialSupervisor({ user: supervisor, query: { desde: '2026-10-01' } }, res);
   assert.equal(res.codigo, 200);
-  assert.deepEqual(consulta.parametros, [8, [15, 19], '2026-10-01', null, 500, 0]);
+  assert.deepEqual(consulta.parametros, ['2026-10-01', null, 500, 0]);
   assert.deepEqual(res.datos.visitas, []);
   assert.deepEqual(res.datos.ordenes, []);
   assert.equal(res.cabeceras['Cache-Control'], 'no-store');

@@ -583,7 +583,7 @@ export function MantenimientoTecnico(props) {
       <div className="erp-module-page">
         <header className="reports-page-header">
           <h2>Historial de mantenimientos técnicos</h2>
-          <p>Consulta las intervenciones de tus clientes y operaciones asignados.</p>
+          <p>Consulta las intervenciones de todas las unidades.</p>
         </header>
         <HistorialTiPr01 soloLectura />
       </div>

@@ -429,13 +429,18 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
               </button>
             </>
           )}
-          {canEdit && (
-            <button
-              onClick={openCreateModal}
-              className="ui-button ui-button-primary">
-              <UiIcon name="plus" /> {vista === 'Devolución' ? 'Registrar Devolución' : 'Nueva Entrega'}
-            </button>
-          )}
+          {canEdit &&
+  (vista === 'Devolución' || rolUsuario.trim() !== 'supervisor') && (
+    <button
+      onClick={openCreateModal}
+      className="ui-button ui-button-primary"
+    >
+      <UiIcon name="plus" />
+      {vista === 'Devolución'
+        ? 'Registrar Devolución'
+        : 'Nueva Entrega'}
+    </button>
+  )}
         </div>
       </div>
 

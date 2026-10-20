@@ -235,10 +235,18 @@ function App() {
     user?.rol?.toLowerCase() === "administrador";
   const isSupervisor = String(user?.rol || '').trim().toLowerCase() === 'supervisor';
   const hasAccess = (modulo) => {
-    if (isAdmin) return true;
-    if (modulo === 'mantenimiento' && isSupervisor) return true;
-    return user?.permisos?.[modulo]?.ver === true;
-  };
+  if (isAdmin) return true;
+
+  if (isSupervisor && modulo === 'flota') {
+    return false;
+  }
+
+  if (isSupervisor && modulo === 'mantenimiento') {
+    return true;
+  }
+
+  return user?.permisos?.[modulo]?.ver === true;
+};
 
   const tiModules = [
     "resumen",
@@ -655,8 +663,9 @@ function App() {
           )}
           {activeTab === "dashboard" && hasAccess("dashboard") && (
             <FlotasDashboard
-              permisos={isAdmin ? { editar: true } : user?.permisos?.dashboard}
-            />
+  usuario={user}
+  permisos={isAdmin ? { editar: true } : user?.permisos?.dashboard}
+/>
           )}
           {activeTab === "entregas" && hasAccess("entregas") && (
             <EntregasTIDashboard

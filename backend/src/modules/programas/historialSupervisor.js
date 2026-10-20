@@ -1,36 +1,31 @@
 import { pool } from '../../config/database.js';
 import { normalizarFiltros } from './programacion/service.js';
 
-// La asignación vigente y todos los detalles se leen en la misma instantánea.
+// El historial de todas las unidades se lee en la misma instantánea.
 // No se publican usuarios, auditoría, enlaces de fotografías ni acciones de edición.
 export const SQL_HISTORIAL_SUPERVISOR = `
   WITH accesibles AS (
     SELECT p.id, p.programa_id, p.programa_unidad_id, p.estado,
            p.quincena_programada::text, p.quincena_reprogramada::text,
            p.quincena_efectiva::text, p.fecha_ejecucion::text,
-           u.placa, c.nombre AS cliente, co.nombre AS operacion,
+           u.placa, COALESCE(c.nombre, v.cliente) AS cliente,
+           COALESCE(co.nombre, v.operacion) AS operacion,
            GREATEST(p.updated_at, p.created_at,
              (SELECT MAX(GREATEST(o.fecha_cierre, o.fecha_apertura, o.updated_at))
               FROM ordenes_trabajo o WHERE o.programacion_id = p.id)) AS sello
     FROM programacion_mantenimiento p
     INNER JOIN programa_mantenimiento_unidades u ON u.id = p.programa_unidad_id
     INNER JOIN vehiculos v ON v.placa = u.placa
-    INNER JOIN cliente_operaciones co ON co.id = v.cliente_operacion_id
-    INNER JOIN clientes c ON c.id = co.cliente_id
-    WHERE co.activo = TRUE AND c.activo = TRUE AND c.es_interno = FALSE
-      AND co.id = ANY($2::integer[])
-      AND EXISTS (
-        SELECT 1 FROM supervisor_asignaciones sa
-        WHERE sa.usuario_id = $1 AND sa.cliente_operacion_id = co.id
-      )
-      AND (p.estado = 'CANCELADO' OR EXISTS (
+    LEFT JOIN cliente_operaciones co ON co.id = v.cliente_operacion_id
+    LEFT JOIN clientes c ON c.id = co.cliente_id
+    WHERE (p.estado = 'CANCELADO' OR EXISTS (
         SELECT 1 FROM ordenes_trabajo o WHERE o.programacion_id = p.id
       ))
-      AND ($3::date IS NULL OR COALESCE(p.quincena_efectiva, p.quincena_programada) >= $3::date)
-      AND ($4::date IS NULL OR COALESCE(p.quincena_efectiva, p.quincena_programada) <= $4::date)
+      AND ($1::date IS NULL OR COALESCE(p.quincena_efectiva, p.quincena_programada) >= $1::date)
+      AND ($2::date IS NULL OR COALESCE(p.quincena_efectiva, p.quincena_programada) <= $2::date)
   ), pagina AS (
     SELECT * FROM accesibles ORDER BY sello DESC NULLS LAST, id DESC
-    LIMIT $5::integer OFFSET $6::integer
+    LIMIT $3::integer OFFSET $4::integer
   )
   SELECT (SELECT COUNT(*)::integer FROM accesibles) AS total,
     COALESCE(jsonb_agg(jsonb_build_object(
@@ -75,11 +70,8 @@ export const validarConsultaHistorial = (usuario, query = {}) => {
     throw Object.assign(new Error('Este historial corresponde al rol supervisor'), { status: 403 });
   }
   const usuarioId = Number(usuario.id);
-  const asignaciones = [...new Set((Array.isArray(usuario.clienteOperacionIds)
-    ? usuario.clienteOperacionIds : []).map(Number)
-    .filter(id => Number.isSafeInteger(id) && id > 0))];
-  if (!Number.isSafeInteger(usuarioId) || usuarioId <= 0 || !asignaciones.length) {
-    throw Object.assign(new Error('No tienes clientes y operaciones asignados'), { status: 403 });
+  if (!Number.isSafeInteger(usuarioId) || usuarioId <= 0) {
+    throw Object.assign(new Error('La sesión del supervisor no es válida'), { status: 403 });
   }
   const permitidos = new Set(['desde', 'hasta', 'limite', 'desplazamiento']);
   if (Object.keys(query).some(clave => !permitidos.has(clave))) {
@@ -92,14 +84,14 @@ export const validarConsultaHistorial = (usuario, query = {}) => {
   if (filtros.limite < 1) {
     throw Object.assign(new Error('El límite debe ser mayor que cero'), { status: 400 });
   }
-  return { usuarioId, asignaciones, filtros };
+  return { usuarioId, filtros };
 };
 
 export const listarHistorialSupervisor = async (req, res) => {
   try {
-    const { usuarioId, asignaciones, filtros } = validarConsultaHistorial(req.user, req.query);
+    const { filtros } = validarConsultaHistorial(req.user, req.query);
     const resultado = await pool.query(SQL_HISTORIAL_SUPERVISOR, [
-      usuarioId, asignaciones, filtros.desde, filtros.hasta,
+      filtros.desde, filtros.hasta,
       filtros.limite, filtros.desplazamiento
     ]);
     const { total = 0, visitas: filas = [] } = resultado.rows[0] || {};

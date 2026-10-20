@@ -127,7 +127,9 @@ function MobileCameraInput({ label, onSelect, preview, setPreview, disabled = fa
 
 const ITEMS_PER_PAGE = 8;
 
-export function FlotasDashboard({ permisos }) {
+export function FlotasDashboard({ permisos, usuario }) {
+  const isSupervisor =
+    String(usuario?.rol || '').trim().toLowerCase() === 'supervisor';
   const [vehiculos, setVehiculos] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -298,13 +300,14 @@ export function FlotasDashboard({ permisos }) {
           >
             <UiIcon name="download" size={17} /> Exportar
           </button>
-          {(!permisos || permisos.editar !== false) && (
-            <button
-              onClick={() => setShowInspectionModal(true)}
-              className="ui-button ui-button-primary">
-              <UiIcon name="plus" size={17} /> Nueva inspección
-            </button>
-          )}
+          {!isSupervisor && (!permisos || permisos.editar !== false) && (
+  <button
+    onClick={() => setShowInspectionModal(true)}
+    className="ui-button ui-button-primary"
+  >
+    <UiIcon name="plus" size={17} /> Nueva inspección
+  </button>
+)}
         </div>
       </div>
 
