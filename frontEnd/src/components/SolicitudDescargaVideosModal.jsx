@@ -48,6 +48,15 @@ export function SolicitudDescargaVideosModal({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [busquedaPlaca, setBusquedaPlaca] = useState('');
+  const cerrarModalVideos = () => {
+  setForm({
+    ...FORM_INICIAL,
+    placas: []
+  });
+
+  setBusquedaPlaca('');
+  onClose();
+};
 
   useEffect(() => {
     if (!open) return;
@@ -190,8 +199,7 @@ export function SolicitudDescargaVideosModal({
       });
 
       toast.success('Solicitud de descarga registrada');
-      setForm(FORM_INICIAL);
-      onClose();
+      cerrarModalVideos();
     } catch (error) {
       toast.error(
         error.message ||
@@ -204,7 +212,6 @@ export function SolicitudDescargaVideosModal({
 
   return (
     <div
-      onClick={onClose}
       style={{
         position: 'fixed',
         inset: 0,
@@ -257,7 +264,7 @@ export function SolicitudDescargaVideosModal({
 
           <button
             type="button"
-            onClick={onClose}
+            onClick={cerrarModalVideos}
             className="ui-icon-button"
             aria-label="Cerrar"
           >
@@ -274,9 +281,8 @@ export function SolicitudDescargaVideosModal({
           }}
         >
           <div style={{
-            display: 'grid',
-            gridTemplateColumns:
-              'repeat(auto-fit, minmax(220px, 1fr))',
+            display: 'flex',
+            flexDirection: 'column',
             gap: '1rem'
           }}>
             <div>
@@ -504,116 +510,166 @@ export function SolicitudDescargaVideosModal({
 
           </div>
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns:
-              'repeat(auto-fit, minmax(160px, 1fr))',
-            gap: '1rem'
-          }}>
+          <div
+  style={{
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1rem'
+  }}
+>
+  <fieldset
+    style={{
+      margin: 0,
+      minWidth: 0,
+      padding: '1rem',
+      border: '1px solid var(--border-color)',
+      borderRadius: '0.75rem'
+    }}
+  >
+    <legend
+      style={{
+        padding: '0 0.5rem',
+        color: 'var(--text-primary)',
+        fontSize: '0.95rem',
+        fontWeight: 600
+      }}
+    >
+      Datos de llegada
+    </legend>
 
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns:
-                  'repeat(auto-fit, minmax(220px, 1fr))',
-                gap: '1rem'
-              }}
-            >
-              <div>
-                <label style={labelStyle}>
-                  Fecha de llegada de la unidad
-                </label>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+        gap: '1rem'
+      }}
+    >
+      <div>
+        <label style={labelStyle}>
+          Fecha de llegada de la unidad
+        </label>
 
-                <input
-                  type="date"
-                  required
-                  value={form.fecha_llegada_unidad}
-                  onChange={event => setForm({
-                    ...form,
-                    fecha_llegada_unidad: event.target.value
-                  })}
-                  style={inputStyle}
-                />
-              </div>
+        <input
+          type="date"
+          required
+          value={form.fecha_llegada_unidad}
+          onChange={event =>
+            setForm({
+              ...form,
+              fecha_llegada_unidad: event.target.value
+            })
+          }
+          style={inputStyle}
+        />
+      </div>
 
-              <div>
-                <label style={labelStyle}>
-                  Hora de llegada de la unidad
-                </label>
+      <div>
+        <label style={labelStyle}>
+          Hora de llegada de la unidad
+        </label>
 
-                <input
-                  type="time"
-                  required
-                  value={form.hora_llegada_unidad}
-                  onChange={event => setForm({
-                    ...form,
-                    hora_llegada_unidad: event.target.value
-                  })}
-                  style={inputStyle}
-                />
-              </div>
-            </div>
+        <input
+          type="time"
+          required
+          value={form.hora_llegada_unidad}
+          onChange={event =>
+            setForm({
+              ...form,
+              hora_llegada_unidad: event.target.value
+            })
+          }
+          style={inputStyle}
+        />
+      </div>
+    </div>
+  </fieldset>
 
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns:
-                  'repeat(auto-fit, minmax(160px, 1fr))',
-                gap: '1rem'
-              }}
-            >
-              <div>
-                <label style={labelStyle}>
-                  Fecha de la descarga
-                </label>
+  <fieldset
+    style={{
+      margin: 0,
+      minWidth: 0,
+      padding: '1rem',
+      border: '1px solid var(--border-color)',
+      borderRadius: '0.75rem'
+    }}
+  >
+    <legend
+      style={{
+        padding: '0 0.5rem',
+        color: 'var(--text-primary)',
+        fontSize: '0.95rem',
+        fontWeight: 600
+      }}
+    >
+      Datos de descarga
+    </legend>
 
-                <input
-                  type="date"
-                  required
-                  value={form.fecha_descarga}
-                  onChange={event => setForm({
-                    ...form,
-                    fecha_descarga: event.target.value
-                  })}
-                  style={inputStyle}
-                />
-              </div>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+        gap: '1rem'
+      }}
+    >
+      <div>
+        <label style={labelStyle}>
+          Fecha de la descarga
+        </label>
 
-              <div>
-                <label style={labelStyle}>
-                  Hora de inicio de descarga
-                </label>
+        <input
+          type="date"
+          required
+          value={form.fecha_descarga}
+          onChange={event =>
+            setForm({
+              ...form,
+              fecha_descarga: event.target.value
+            })
+          }
+          style={inputStyle}
+        />
+      </div>
 
-                <input
-                  type="time"
-                  required
-                  value={form.hora_inicio}
-                  onChange={event => setForm({
-                    ...form,
-                    hora_inicio: event.target.value
-                  })}
-                  style={inputStyle}
-                />
-              </div>
+      <div>
+        <label style={labelStyle}>
+          Hora de inicio de descarga
+        </label>
 
-              <div>
-                <label style={labelStyle}>
-                  Hora de fin de descarga
-                </label>
+        <input
+          type="time"
+          required
+          value={form.hora_inicio}
+          onChange={event =>
+            setForm({
+              ...form,
+              hora_inicio: event.target.value
+            })
+          }
+          style={inputStyle}
+        />
+      </div>
 
-                <input
-                  type="time"
-                  required
-                  value={form.hora_fin}
-                  onChange={event => setForm({
-                    ...form,
-                    hora_fin: event.target.value
-                  })}
-                  style={inputStyle}
-                />
-              </div>
-            </div>
-          </div>
+      <div>
+        <label style={labelStyle}>
+          Hora de fin de descarga
+        </label>
+
+        <input
+          type="time"
+          required
+          value={form.hora_fin}
+          onChange={event =>
+            setForm({
+              ...form,
+              hora_fin: event.target.value
+            })
+          }
+          style={inputStyle}
+        />
+      </div>
+    </div>
+  </fieldset>
+</div>
           <div>
             <label style={labelStyle}>Motivo</label>
             <textarea
@@ -642,7 +698,7 @@ export function SolicitudDescargaVideosModal({
           }}>
             <button
               type="button"
-              onClick={onClose}
+              onClick={cerrarModalVideos}
               className="ui-button ui-button-secondary"
             >
               Cancelar
