@@ -485,7 +485,25 @@ export const apiTiPr01 = {
     )
 };
 
-export const api = {  // ==========================================
+export const api = {
+  getEquiposVehiculo: async (placa, opciones = {}) => {
+    const response = await fetchWithAuth(
+      `${BASE_API_URL}/vehiculos/${encodeURIComponent(placa)}/equipos`,
+      { signal: opciones.signal, cache: 'no-store' }
+    );
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'No se pudieron cargar los dispositivos');
+    return data;
+  },
+  actualizarEquiposVehiculo: async (placa, equipos) => {
+    const response = await fetchWithAuth(
+      `${BASE_API_URL}/vehiculos/${encodeURIComponent(placa)}/equipos`,
+      { method: 'PUT', body: JSON.stringify({ equipos }) }
+    );
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'No se pudieron guardar los dispositivos');
+    return data;
+  },  // ==========================================
   // MAESTRO DE FLOTA
   // ==========================================
   getTractos: async () => {

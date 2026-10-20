@@ -20,8 +20,8 @@ export const ORDEN = { M1: 1, M2: 2, M3: 3 };
 export const NIVELES = Object.keys(ORDEN);
 
 export const ETIQUETA_EQUIPO = {
-  // DVR se conserva SOLO para lectura: el inventario fisico sigue teniendo DVR_INTERNO y
-  // DVR_EXTERNO, y una OT historica puede traer un detalle DVR. No cuenta como regular
+  // DVR se conserva SOLO para lectura: una OT historica puede traer un detalle DVR.
+  // El inventario tiene un solo DVR por unidad. No cuenta como regular
   // nueva porque no esta en REGULARES, asi que esRegular('DVR') es false y alcanceDe() no
   // lo mete en el nivel comun.
   DVR: 'DVR',

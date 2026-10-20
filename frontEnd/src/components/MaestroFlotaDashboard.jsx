@@ -1,10 +1,22 @@
+import { InventarioVehiculo } from './InventarioVehiculo';
+import { crearEquiposFormulario } from '../utils/equiposVehiculo';
+import { EquiposVehiculoFields } from './EquiposVehiculoFields';
 import { formatearPlaca } from '../utils/formatos';
 import { ClienteOperacionFields } from './ClienteOperacionFields';
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '../services/api';
+
+function describirQuincena(fecha) {
+  const periodo = new Intl.DateTimeFormat('es-PE', {
+    month: 'long', year: 'numeric', timeZone: 'UTC'
+  }).format(new Date(`${fecha}T00:00:00Z`));
+  return `${fecha.slice(8) === '01' ? 'primera' : 'segunda'} quincena de ${periodo}`;
+}
+
 export function MaestroFlotaDashboard({ permisos, usuario }) {
-  const isAdmin = ['admin', 'administrador'].includes(String(usuario?.rol || '').toLowerCase());
-  const isTI = String(usuario?.rol || '').toLowerCase() === 'ti';
+  const rol = String(usuario?.rol || '').trim().toLowerCase();
+  const isAdmin = ['admin', 'administrador'].includes(rol);
+  const isTI = rol === 'ti';
   const [tractos, setTractos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -12,10 +24,10 @@ export function MaestroFlotaDashboard({ permisos, usuario }) {
   const [selectedItem, setSelectedItem] = useState(null);
   const [editItem, setEditItem] = useState(null); // Item being edited
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [altaCreada, setAltaCreada] = useState(null);
 
   const loadData = async () => {
     try {
-      setLoading(true);
       const tData = await api.getTractos();
       setTractos(Array.isArray(tData) ? tData : []);
     } catch (error) {
@@ -26,7 +38,19 @@ export function MaestroFlotaDashboard({ permisos, usuario }) {
   };
 
   useEffect(() => {
-    loadData();
+    let vigente = true;
+    const cargar = async () => {
+      try {
+        const datos = await api.getTractos();
+        if (vigente) setTractos(Array.isArray(datos) ? datos : []);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        if (vigente) setLoading(false);
+      }
+    };
+    cargar();
+    return () => { vigente = false; };
   }, []);
 
   const filteredTractos = tractos.filter(t =>
@@ -54,10 +78,27 @@ export function MaestroFlotaDashboard({ permisos, usuario }) {
             Maestro de Flotas
           </h1>
           <p style={{ color: 'var(--text-secondary)', margin: '0.5rem 0 0' }}>
-            Base de datos maestra estática de Tractos.
+            Información general y dispositivos de las unidades.
           </p>
         </div>
+        {permisos?.editar === true && (isAdmin || isTI) && (
+          <button type="button" className="ui-button ui-button-success"
+            onClick={() => { setEditItem(null); setIsEditModalOpen(true); }}>
+            Nueva unidad
+          </button>
+        )}
       </div>
+
+      {altaCreada?.mantenimiento && <div className="inventario-nuevo" role="status">
+        <strong>Unidad {formatearPlaca(altaCreada.placa)} incorporada a {altaCreada.mantenimiento.codigo}.</strong>
+        <p>{altaCreada.mantenimiento.primera_regular
+          ? `Su mantenimiento regular comienza en M1 en la ${describirQuincena(altaCreada.mantenimiento.quincena_incorporacion)}.`
+          : 'La unidad quedó registrada; la programación depende de los dispositivos y sus fechas de referencia.'}</p>
+        {altaCreada.mantenimiento.pendientes?.length > 0 && <ul>
+          {altaCreada.mantenimiento.pendientes.map(pendiente => <li key={pendiente}>{pendiente}</li>)}
+        </ul>}
+        <button className="ui-button ui-button-secondary" type="button" onClick={() => setAltaCreada(null)}>Entendido</button>
+      </div>}
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-color)' }}>
@@ -75,7 +116,7 @@ export function MaestroFlotaDashboard({ permisos, usuario }) {
             transition: 'all 0.2s'
           }}
         >
-          Tractos ({tractos.length})
+          Unidades ({tractos.length})
         </button>
 
       </div>
@@ -138,12 +179,6 @@ export function MaestroFlotaDashboard({ permisos, usuario }) {
                                 catch (err) { alert(err.message); }
                               }
                             }} style={{ background: 'none', border: 'none', color: '#dc3b2a', cursor: 'pointer' }} disabled={t.activo === false} title="Dejar inactivo">Desactivar</button>
-                            {isAdmin && <button title="Eliminar unidad" onClick={async e => {
-                              e.stopPropagation();
-                              if (window.confirm(`¿Eliminar definitivamente ${t.placa}? Solo será posible si no tiene historial relacionado.`)) {
-                                try { await api.deleteVehiculo(t.placa); loadData(); } catch (error) { alert(error.message); }
-                              }
-                            }}>Eliminar</button>}
                             {isAdmin && t.activo === false && <button onClick={async e => { e.stopPropagation(); try { await api.cambiarEstadoVehiculo(t.placa, true); loadData(); } catch (error) { alert(error.message); } }}>Activar</button>}
                           </>
                         )}
@@ -204,7 +239,7 @@ export function MaestroFlotaDashboard({ permisos, usuario }) {
 
           <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-secondary)' }}>
             <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
-              Ficha Técnica: Tracto
+              Ficha técnica de la unidad
             </h2>
             <button
               onClick={() => setSelectedItem(null)}
@@ -241,7 +276,8 @@ export function MaestroFlotaDashboard({ permisos, usuario }) {
                 }
               />
             </div>
-
+            <InventarioVehiculo key={selectedItem.data.placa}
+              placa={selectedItem.data.placa} puedeEditar={isAdmin && permisos?.editar === true} />
           </div>
         </div>
       )}
@@ -251,7 +287,7 @@ export function MaestroFlotaDashboard({ permisos, usuario }) {
             isTI={isTI}
           item={editItem}
           onClose={() => setIsEditModalOpen(false)}
-          onSaved={() => { setIsEditModalOpen(false); loadData(); }}
+          onSaved={creada => { setIsEditModalOpen(false); if (creada) setAltaCreada(creada); loadData(); }}
         />
       )}
     </div>
@@ -269,6 +305,8 @@ function DetailBox({ label, value, full }) {
 }
 
 function EditModal({ item, onClose, onSaved, isTI }) {
+  const esNuevo = !item;
+  const [equipos, setEquipos] = useState(() => crearEquiposFormulario([], true));
   const [opciones, setOpciones] = useState([]);
   useEffect(() => { api.getOpcionesFlota().then(data => setOpciones(data.clientesOperaciones || [])).catch(error => alert(error.message)); }, []);
   const [formData, setFormData] = useState({
@@ -336,12 +374,23 @@ function EditModal({ item, onClose, onSaved, isTI }) {
           formData.operacion.trim()
       };
 
-      await api.updateVehiculo(
-        formData.placa,
-        isTI ? { cliente_operacion_id: Number(formData.cliente_operacion_id) } : { ...payload, cliente_operacion_id: Number(formData.cliente_operacion_id) }
-      );
+      let creada;
+      if (esNuevo) {
+        creada = await api.createVehiculo({
+          ...payload,
+          placa: formData.placa,
+          cliente_operacion_id: Number(formData.cliente_operacion_id),
+          equipos
+        });
+      } else {
+        await api.updateVehiculo(
+          formData.placa,
+          isTI ? { cliente_operacion_id: Number(formData.cliente_operacion_id) }
+            : { ...payload, cliente_operacion_id: Number(formData.cliente_operacion_id) }
+        );
+      }
 
-      onSaved();
+      onSaved(creada);
 
     } catch (err) {
       alert(
@@ -396,11 +445,12 @@ function EditModal({ item, onClose, onSaved, isTI }) {
               color: 'var(--text-primary)'
             }}
           >
-            Editar Tracto - {formatearPlaca(formData.placa)}
+            {esNuevo ? 'Nueva unidad' : `Editar unidad - ${formatearPlaca(formData.placa)}`}
           </h2>
 
           <button
             onClick={onClose}
+            disabled={saving}
             type="button"
             style={{
               background: 'none',
@@ -429,10 +479,17 @@ function EditModal({ item, onClose, onSaved, isTI }) {
               gap: '1rem'
             }}
           >
+            {esNuevo && <label style={{ gridColumn: '1 / -1' }}>Placa
+              <input aria-label="Placa de la nueva unidad" required maxLength={7}
+                placeholder="XXX-XXX" value={formData.placa} disabled={saving}
+                onChange={e => setFormData(actual => ({ ...actual, placa: e.target.value.toUpperCase() }))}
+                style={{ width: '100%', boxSizing: 'border-box', padding: '.65rem', borderRadius: '.4rem',
+                  border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
+            </label>}
             <Field
               label="Tipo de vehículo"
               name="tipo_vehiculo"
-              disabled={isTI}
+              disabled={saving || (isTI && !esNuevo)}
               value={formData.tipo_vehiculo}
               onChange={handleChange}
             />
@@ -440,7 +497,7 @@ function EditModal({ item, onClose, onSaved, isTI }) {
             <Field
               label="Marca"
               name="marca_tracto"
-              disabled={isTI}
+              disabled={saving || (isTI && !esNuevo)}
               value={formData.marca_tracto}
               onChange={handleChange}
             />
@@ -448,7 +505,7 @@ function EditModal({ item, onClose, onSaved, isTI }) {
             <Field
               label="Modelo"
               name="modelo_tracto"
-              disabled={isTI}
+              disabled={saving || (isTI && !esNuevo)}
               value={formData.modelo_tracto}
               onChange={handleChange}
             />
@@ -472,7 +529,7 @@ function EditModal({ item, onClose, onSaved, isTI }) {
               <input
                 type="number"
                 name="anio_fabricacion"
-              disabled={isTI}
+              disabled={saving || (isTI && !esNuevo)}
                 value={formData.anio_fabricacion}
                 onChange={handleChange}
                 min="1900"
@@ -489,6 +546,12 @@ function EditModal({ item, onClose, onSaved, isTI }) {
 
             <ClienteOperacionFields opciones={opciones} cliente={formData.cliente} relacionId={formData.cliente_operacion_id}
               onChange={cambios => setFormData(actual => ({ ...actual, ...cambios }))} />
+            {esNuevo && <section className="inventario-nuevo" aria-label="Dispositivos de la nueva unidad">
+              <h3>Dispositivos de la unidad</h3>
+              <p>Indique si cada dispositivo está instalado, no aplica o está por confirmar.</p>
+              <p>Los equipos instalados se incorporarán a TI-PR-01. El mantenimiento regular comenzará en M1 en la quincena actual. Para calcular los mantenimientos anuales se necesita la fecha de instalación.</p>
+              <EquiposVehiculoFields equipos={equipos} onChange={setEquipos} disabled={saving} />
+            </section>}
           </form>
         </div>
 
@@ -503,6 +566,7 @@ function EditModal({ item, onClose, onSaved, isTI }) {
         >
           <button
             onClick={onClose}
+            disabled={saving}
             type="button"
             style={{
               padding: '0.75rem 1.5rem',
@@ -533,7 +597,7 @@ function EditModal({ item, onClose, onSaved, isTI }) {
           >
             {saving
               ? 'Guardando...'
-              : 'Guardar Cambios'}
+              : esNuevo ? 'Crear unidad' : 'Guardar cambios'}
           </button>
         </div>
       </div>
@@ -546,75 +610,6 @@ function Field({ label, name, value, onChange, disabled }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
       <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{label}</label>
       <input disabled={disabled} type="text" name={name} value={value || ''} onChange={onChange} style={{ padding: '0.5rem', borderRadius: '0.25rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
-    </div>
-  );
-}
-function SelectField({
-  label,
-  name,
-  value,
-  onChange,
-  options
-}) {
-  const valorActual =
-    String(value || '').trim();
-
-  const existeEnOpciones =
-    options.some(
-      option =>
-        option.toLowerCase() ===
-        valorActual.toLowerCase()
-    );
-
-  return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '0.25rem'
-      }}
-    >
-      <label
-        style={{
-          fontSize: '0.85rem',
-          color: 'var(--text-secondary)'
-        }}
-      >
-        {label}
-      </label>
-
-      <select
-        name={name}
-        value={value || ''}
-        onChange={onChange}
-        style={{
-          padding: '0.5rem',
-          borderRadius: '0.25rem',
-          border: '1px solid var(--border-color)',
-          backgroundColor: 'var(--bg-secondary)',
-          color: 'var(--text-primary)'
-        }}
-      >
-        <option value="">
-          Seleccione {label.toLowerCase()}
-        </option>
-
-        {valorActual &&
-          !existeEnOpciones && (
-            <option value={valorActual}>
-              {valorActual} (valor actual)
-            </option>
-          )}
-
-        {options.map(option => (
-          <option
-            key={option}
-            value={option}
-          >
-            {option}
-          </option>
-        ))}
-      </select>
     </div>
   );
 }

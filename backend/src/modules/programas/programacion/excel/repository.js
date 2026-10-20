@@ -23,7 +23,7 @@ export async function leerProgramaExcel(programaId, conexion = pool) {
       JOIN vehiculos v ON v.placa = u.placa
       LEFT JOIN cliente_operaciones co ON co.id = v.cliente_operacion_id
       LEFT JOIN clientes c ON c.id = co.cliente_id
-      WHERE u.programa_id = $1 ORDER BY u.placa, u.id
+      WHERE u.programa_id = $1 AND u.habilitado ORDER BY u.placa, u.id
     `, [programaId]);
     const { rows: visitas } = await client.query(`
       SELECT p.id, p.programa_unidad_id, p.estado,

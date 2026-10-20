@@ -167,6 +167,11 @@ solicitud_descarga_video_placas: [
     'ultimo_acceso'
   ],
 
+  vehiculo_equipos: [
+    'id', 'placa', 'tipo_equipo', 'estado_inventario', 'marca', 'modelo',
+    'numero_serie', 'fecha_instalacion', 'observaciones', 'fuente'
+  ],
+
   vehiculos: [
     'activo',
     'placa',
@@ -264,7 +269,9 @@ solicitud_descarga_video_placas: [
     'programa_id',
     'placa',
     'quincena_incorporacion',
-    'observaciones'
+    'observaciones',
+    'habilitado',
+    'familias_confirmadas'
   ],
 
   // La fase de cada equipo: lo que sustituye a fecha_base_m1/m2/m3.

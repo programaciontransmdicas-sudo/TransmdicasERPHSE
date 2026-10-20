@@ -54,7 +54,7 @@ export const ORDEN = { M1: 1, M2: 2, M3: 3 };
 export const ESTADO_INICIAL = 'PROYECTADO';
 // composicion de cada familia regular a partir de los tipos FISICOS del inventario.
 // Verificado contra chk_vehiculo_equipo_tipo: el dominio real es exactamente este.
-// 017 · DVR_INTERNO y DVR_EXTERNO siguen existiendo en vehiculo_equipos como inventario
+// DVR existe una sola vez por unidad en vehiculo_equipos como inventario
 // fisico, con su marca, su serie y su fecha de instalacion. Lo que ya no existe es una
 // familia DVR a la que proyectarlos: su mantenimiento esta contenido en CAMARAS.
 export const FISICOS = {
@@ -125,7 +125,7 @@ export async function cargarInsumos(cliente, programaId) {
     LEFT JOIN programa_mantenimiento_unidad_anclas x
       ON x.programa_unidad_id = u.id AND x.tipo_equipo = f.tipo_equipo
      AND x.nivel_mantenimiento = f.nivel_mantenimiento
-    WHERE u.programa_id = $1 AND COALESCE(c.ultima_quincena, x.quincena_ancla) IS NOT NULL`,
+    WHERE u.programa_id = $1 AND u.habilitado AND COALESCE(c.ultima_quincena, x.quincena_ancla) IS NOT NULL`,
     [programaId]);
 
   // aplicabilidad: proyeccion de los TRES estados reales de vehiculo_equipos. El dominio
@@ -134,7 +134,8 @@ export async function cargarInsumos(cliente, programaId) {
   const APLICA = new Map();
   const { rows: apl } = await cliente.query(`
     SELECT u.id AS unidad, fam.familia,
-      CASE WHEN count(e.id) = 0                          THEN 'SIN_FILA'
+      CASE WHEN bool_or(fam.familia = ANY(u.familias_confirmadas)) THEN 'APLICA'
+           WHEN count(e.id) = 0                          THEN 'SIN_FILA'
            WHEN bool_or(e.estado_inventario='INSTALADO')  THEN 'APLICA'
            WHEN bool_and(e.estado_inventario='NO_APLICA') THEN 'NO_APLICA'
            ELSE 'PENDIENTE' END AS estado
@@ -142,7 +143,7 @@ export async function cargarInsumos(cliente, programaId) {
     CROSS JOIN (VALUES ('CAMARAS', $2::text[]),
                        ('COPILOTO', $3::text[]), ('RADIO_BASE', $4::text[])) AS fam(familia, fisicos)
     LEFT JOIN vehiculo_equipos e ON e.placa = u.placa AND e.tipo_equipo = ANY(fam.fisicos)
-    WHERE u.programa_id = $1 GROUP BY u.id, fam.familia`,
+    WHERE u.programa_id = $1 AND u.habilitado GROUP BY u.id, fam.familia`,
     [programaId, FISICOS.CAMARAS, FISICOS.COPILOTO, FISICOS.RADIO_BASE]);
   for (const r of apl) APLICA.set(`${r.unidad}|${r.familia}`, r.estado);
 
@@ -155,7 +156,7 @@ export async function cargarInsumos(cliente, programaId) {
     SELECT u.id AS unidad, e.tipo_equipo AS familia, e.estado_inventario AS est, e.marca
     FROM programa_mantenimiento_unidades u
     JOIN vehiculo_equipos e ON e.placa = u.placa AND e.tipo_equipo = ANY($2)
-    WHERE u.programa_id = $1`, [programaId, ANUALES]);
+    WHERE u.programa_id = $1 AND u.habilitado`, [programaId, ANUALES]);
   for (const r of anu) {
     const instalado = r.est === 'INSTALADO';
     const proveedor = r.familia === 'GPS' || /TRACKLOG/i.test(r.marca || '');
@@ -168,7 +169,7 @@ export async function cargarInsumos(cliente, programaId) {
 
   const { rows: todasU } = await cliente.query(
     `SELECT id, placa, programa_id FROM programa_mantenimiento_unidades
-     WHERE programa_id=$1 ORDER BY placa`, [programaId]);
+     WHERE programa_id=$1 AND habilitado ORDER BY placa`, [programaId]);
   const { rows: fr } = await cliente.query(
     `SELECT tipo_equipo, nivel_mantenimiento, frecuencia_quincenas
      FROM programa_mantenimiento_frecuencias WHERE programa_id=$1`, [programaId]);
@@ -180,7 +181,8 @@ export async function cargarInsumos(cliente, programaId) {
   const slots = await cargarSlots(cliente, programaId);
 
   const { rows: ajustadas } = await cliente.query(`SELECT programa_unidad_id, max(id)::int AS revision
-    FROM programacion_mantenimiento_ajustes WHERE programa_id=$1 GROUP BY programa_unidad_id`, [programaId]);
+    FROM programacion_mantenimiento_ajustes a WHERE a.programa_id=$1
+      AND EXISTS(SELECT 1 FROM programa_mantenimiento_unidades u WHERE u.id=a.programa_unidad_id AND u.habilitado) GROUP BY programa_unidad_id`, [programaId]);
   const { rows: fecha } = await cliente.query(`SELECT (now() AT TIME ZONE 'America/Lima')::date::text AS fecha_negocio`);
 
   return {
@@ -565,7 +567,8 @@ export async function materializar(cliente, visitas) {
       // No materializar una fotografía leída antes de una reprogramación/cierre.
       // La unidad se bloquea primero y la revisión se lee en una sentencia posterior:
       // READ COMMITTED ve así el ajuste que pudo terminar mientras esperaba el bloqueo.
-      await cliente.query('SELECT id FROM programa_mantenimiento_unidades WHERE id=$1 FOR UPDATE', [v.unidad]);
+      const { rows: vigentes } = await cliente.query('SELECT id, habilitado FROM programa_mantenimiento_unidades WHERE id=$1 FOR UPDATE', [v.unidad]);
+      if (!vigentes[0]?.habilitado) throw new Error(`La unidad ${v.placa} fue dada de baja del programa. No se materializó la visita.`);
       const { rows: revisiones } = await cliente.query(`SELECT COALESCE(max(id),0)::int AS revision
         FROM programacion_mantenimiento_ajustes WHERE programa_unidad_id=$1`, [v.unidad]);
       if (revisiones[0].revision !== (v.revision_ajuste ?? 0)) {

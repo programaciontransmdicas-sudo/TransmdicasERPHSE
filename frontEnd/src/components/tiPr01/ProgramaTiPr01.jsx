@@ -711,7 +711,13 @@ export function ProgramaTiPr01({ permisos, onIrAOrden }) {
 
   // ------------------------------------------------------------------ derivados
   // Las quincenas son columnas derivadas de los datos: sin lista fija.
-  const quincenas = useMemo(() => quincenasDe(visitas), [visitas]);
+  const quincenas = useMemo(() => {
+  const visibles = estadoFiltro === 'CANCELADO'
+    ? visitas
+    : visitas.filter(v => v.estado !== 'CANCELADO');
+
+  return quincenasDe(visibles);
+}, [visitas, estadoFiltro]);
 
   // Una fila por unidad, con sus visitas agrupadas por quincena efectiva.
   //
@@ -720,64 +726,86 @@ export function ProgramaTiPr01({ permisos, onIrAOrden }) {
   // asi que una unidad puede acumular varias CANCELADAS en la misma quincena y, encima,
   // una activa. Quedarse con la ultima del arreglo escondia la activa detras de una
   // cancelada. Se agrupa y se elige: manda la que NO esta cancelada.
-  const filas = useMemo(() => {
-    const porUnidad = new Map();
+ const filas = useMemo(() => {
+  const porUnidad = new Map();
 
-    for (const v of visitas) {
-      const clave = v.unidad?.id ?? v.programa_unidad_id;
-      if (!porUnidad.has(clave)) {
-        porUnidad.set(clave, {
-          id: clave,
-          placa: v.unidad?.placa ?? '—',
-          operacion: String(v.unidad?.operacion || '').trim().toUpperCase(),
-          porQuincena: new Map(),
-          // Quincena de ORIGEN -> visita que nacio ahi y se movio a otra. Es lo que
-          // convierte un hueco mudo en «se reprogramo».
-          movidas: new Map()
-        });
-      }
-      const efectiva = v.quincena_efectiva ?? v.quincena_programada;
-      const celda = porUnidad.get(clave).porQuincena;
+  for (const v of visitas) {
+    if (v.estado === 'CANCELADO' && estadoFiltro !== 'CANCELADO') {
+      continue;
+    }
 
-      if (!celda.has(efectiva)) celda.set(efectiva, []);
-      celda.get(efectiva).push(v);
+    const clave = v.unidad?.id ?? v.programa_unidad_id;
 
-      // Una visita reprogramada deja su quincena de nacimiento vacia: la matriz indexa por
-      // quincena_efectiva. La obligacion NO se perdio -el generador la identifica por
-      // quincena_programada-, asi que pintar la celda igual que «nunca hubo nada» miente.
-      // No se duplica la visita: esto es solo una marca de rastro en el origen.
+    if (!porUnidad.has(clave)) {
+      porUnidad.set(clave, {
+        id: clave,
+        placa: v.unidad?.placa ?? '—',
+        operacion: String(v.unidad?.operacion || '')
+          .trim()
+          .toUpperCase(),
+        porQuincena: new Map(),
+        movidas: new Map()
+      });
+    }
+
+    const fila = porUnidad.get(clave);
+    const efectiva = v.quincena_efectiva ?? v.quincena_programada;
+
+    if (!fila.porQuincena.has(efectiva)) {
+      fila.porQuincena.set(efectiva, []);
+    }
+
+    fila.porQuincena.get(efectiva).push(v);
+
+    // Conserva la marca de origen de las visitas reprogramadas.
+    if (
+      v.quincena_programada &&
+      efectiva !== v.quincena_programada
+    ) {
+      fila.movidas.set(v.quincena_programada, v);
+    }
+
+    for (const ajuste of v.ajustes ?? []) {
       if (
-        v.quincena_programada
-        && efectiva !== v.quincena_programada
+        ajuste.tipo === 'REPROGRAMACION' &&
+        ajuste.origen !== efectiva
       ) {
-        porUnidad.get(clave).movidas.set(v.quincena_programada, v);
-      }
-      for (const ajuste of v.ajustes ?? []) {
-        if (ajuste.tipo === 'REPROGRAMACION' && ajuste.origen !== efectiva) {
-          porUnidad.get(clave).movidas.set(ajuste.origen, { ...v, motivo_movimiento: ajuste.motivo });
-        }
-      }
-    }
-
-    // De cada grupo sale la visita que se pinta, y cuantas quedan debajo.
-    for (const fila of porUnidad.values()) {
-      for (const [q, grupo] of fila.porQuincena) {
-        const activa = grupo.find(v => v.estado !== 'CANCELADO');
-        fila.porQuincena.set(q, {
-          visita: activa ?? grupo[grupo.length - 1],
-          historicas: activa ? grupo.length - 1 : grupo.length - 1
+        fila.movidas.set(ajuste.origen, {
+          ...v,
+          motivo_movimiento: ajuste.motivo
         });
       }
     }
+  }
 
-    const texto = busqueda.trim().toUpperCase();
+  for (const fila of porUnidad.values()) {
+    for (const [quincena, grupo] of fila.porQuincena) {
+      const activa = grupo.find(v => v.estado !== 'CANCELADO');
 
-    return [...porUnidad.values()]
-      .filter(f => !texto || f.placa.toUpperCase().replace(/-/g, '').includes(texto.replace(/-/g, '')))
-      .filter(f => !operacionFiltro || (operacionFiltro === '__SIN_OPERACION__'
-        ? !f.operacion : f.operacion === operacionFiltro))
-      .sort((a, b) => a.placa.localeCompare(b.placa));
-  }, [visitas, busqueda, operacionFiltro]);
+      fila.porQuincena.set(quincena, {
+        visita: activa ?? grupo[grupo.length - 1],
+        historicas: grupo.length - 1
+      });
+    }
+  }
+
+  const texto = busqueda.trim().toUpperCase().replace(/-/g, '');
+
+  return [...porUnidad.values()]
+    .filter(f =>
+      !texto ||
+      f.placa.toUpperCase().replace(/-/g, '').includes(texto)
+    )
+    .filter(f =>
+      !operacionFiltro ||
+      (
+        operacionFiltro === '__SIN_OPERACION__'
+          ? !f.operacion
+          : f.operacion === operacionFiltro
+      )
+    )
+    .sort((a, b) => a.placa.localeCompare(b.placa));
+}, [visitas, busqueda, operacionFiltro, estadoFiltro]);
 
   // Elegibles: lo dice el BACKEND en acciones.puede_programar. Se indexan por quincena para
   // que "Seleccionar quincena" no tenga que recorrer la matriz otra vez.

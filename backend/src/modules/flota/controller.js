@@ -1,7 +1,8 @@
+import { clavePlaca, prepararEquiposVehiculo } from './equiposService.js';
+import { crearVehiculoConEquipos } from './equiposRepository.js';
 import { esAdministrador, obtenerCatalogoClientesOperaciones, resolverClienteOperacion, restringirEdicionTI } from '../../services/catalogoService.js';
 import {
   buscarVehiculos,
-  insertarVehiculo,
   obtenerVehiculoPorPlaca,
   actualizarVehiculo,
   eliminarVehiculo,
@@ -111,15 +112,25 @@ export const listarVehiculos =
 export const registrarVehiculo =
   async (req, res) => {
     try {
-      const datos =
-        prepararNuevoVehiculo(
-          req.body
-        );
-
-      const vehiculoCreado =
-        await insertarVehiculo(
-          datos
-        );
+      if (!tieneAccesoTotalFlota(req)) {
+        return res.status(403).json({ error: 'No tiene permiso para crear unidades' });
+      }
+      const equipos = prepararEquiposVehiculo(req.body?.equipos);
+      const relacion = await resolverClienteOperacion(req.body, true);
+      const datos = {
+        ...prepararNuevoVehiculo({ ...req.body, ...relacion }),
+        ...relacion,
+        placa: clavePlaca(req.body?.placa)
+      };
+      for (const campo of ['tipo_vehiculo', 'marca_tracto', 'modelo_tracto', 'anio_fabricacion']) {
+        if (datos[campo] != null && typeof datos[campo] !== 'string') {
+          throw new FlotaValidationError('Los datos del vehículo deben contener texto');
+        }
+        if ((datos[campo]?.length || 0) > (campo === 'anio_fabricacion' ? 20 : 100)) {
+          throw new FlotaValidationError('Uno de los campos del vehículo supera la longitud permitida');
+        }
+      }
+      const vehiculoCreado = await crearVehiculoConEquipos(datos, equipos);
 
       await logAction(
         req.user.id,
@@ -136,7 +147,7 @@ export const registrarVehiculo =
           vehiculoCreado
         );
     } catch (error) {
-      if ([400, 403].includes(error.status)) return res.status(error.status).json({ error: error.message });
+      if ([400, 403, 409].includes(error.status)) return res.status(error.status).json({ error: error.message });
       if (
         error instanceof
         FlotaValidationError

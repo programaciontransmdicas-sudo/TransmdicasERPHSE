@@ -101,6 +101,7 @@ export const obtenerProgramacion = async (
      FROM programacion_mantenimiento p
      JOIN programa_mantenimiento_unidades u ON u.id = p.programa_unidad_id
      WHERE p.programa_id = $1
+       AND u.habilitado
        AND ($2::text IS NULL OR p.estado = $2)
        AND ($3::text IS NULL OR u.placa = $3)
        AND ($4::date IS NULL OR p.quincena_efectiva = $4::date)
@@ -139,6 +140,7 @@ export const contarProgramacion = async (
      FROM programacion_mantenimiento p
      JOIN programa_mantenimiento_unidades u ON u.id = p.programa_unidad_id
      WHERE p.programa_id = $1
+       AND u.habilitado
        AND ($2::text IS NULL OR p.estado = $2)
        AND ($3::text IS NULL OR u.placa = $3)
        AND ($4::date IS NULL OR p.quincena_efectiva = $4::date)

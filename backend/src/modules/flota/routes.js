@@ -1,3 +1,4 @@
+import { consultarEquiposVehiculo, actualizarEquiposVehiculo } from './equiposController.js';
 import {
   Router
 } from 'express';
@@ -21,6 +22,8 @@ export const maestroRoutes =
 // VEHÍCULOS
 // ==========================================
 
+router.get('/:placa/equipos', consultarEquiposVehiculo);
+router.put('/:placa/equipos', actualizarEquiposVehiculo);
 router.patch('/:placa/estado', cambiarEstadoVehiculo);
 maestroRoutes.get('/opciones', opcionesFlota);
 

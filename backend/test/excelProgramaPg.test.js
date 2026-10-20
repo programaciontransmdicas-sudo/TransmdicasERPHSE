@@ -20,7 +20,7 @@ test('Consulta SQL del Excel: nombres maestros, alcance del programa y OT cerrad
       CREATE TABLE clientes(id int,nombre text);
       CREATE TABLE cliente_operaciones(id int,cliente_id int,nombre text);
       CREATE TABLE vehiculos(placa text,tipo_vehiculo text,marca_tracto text,modelo_tracto text,anio_fabricacion int,cliente_operacion_id int,cliente text,operacion text);
-      CREATE TABLE programa_mantenimiento_unidades(id int,programa_id int,placa text,quincena_incorporacion date,observaciones text);
+      CREATE TABLE programa_mantenimiento_unidades(id int,programa_id int,placa text,quincena_incorporacion date,observaciones text,habilitado boolean NOT NULL DEFAULT true,familias_confirmadas text[] NOT NULL DEFAULT ARRAY[]::text[]);
       CREATE TABLE programacion_mantenimiento(id int,programa_id int,programa_unidad_id int,estado text,quincena_programada date,quincena_reprogramada date,quincena_efectiva date,fecha_ejecucion date,observaciones text);
       CREATE TABLE programacion_mantenimiento_equipos(id int,programacion_id int,tipo_equipo text,nivel_mantenimiento text);
       CREATE TABLE ordenes_trabajo(id int,programacion_id int,estado text);

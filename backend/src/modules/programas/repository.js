@@ -68,7 +68,7 @@ export const obtenerProgramas = async (
               WHERE v.programa_id = p.id) AS total_versiones,
             (SELECT count(*)::int
                FROM programa_mantenimiento_unidades u
-              WHERE u.programa_id = p.id) AS total_unidades
+              WHERE u.programa_id = p.id AND u.habilitado) AS total_unidades
      FROM programas_mantenimiento p
      WHERE ($1::text IS NULL OR p.estado = $1)
      ORDER BY p.codigo ASC`,
@@ -95,7 +95,7 @@ export const obtenerProgramaPorId = async (
             ${FECHA_NEGOCIO},
             (SELECT count(*)::int
                FROM programa_mantenimiento_unidades u
-              WHERE u.programa_id = p.id) AS total_unidades
+              WHERE u.programa_id = p.id AND u.habilitado) AS total_unidades
      FROM programas_mantenimiento p
      WHERE p.id = $1`,
     [id]
