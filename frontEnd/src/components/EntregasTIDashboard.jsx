@@ -3,17 +3,22 @@ import { toast } from 'react-hot-toast';
 import { api, BASE_API_URL } from '../services/api';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { UiIcon } from './UiIcon';
+import { AdjuntosSeleccionados } from './AdjuntosSeleccionados';
 
 // Configurar el worker de PDF.js
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
-export function EntregasTIDashboard({ vista, permisos, usuario }) {
+export function EntregasTIDashboard({ vista, permisos, usuario, reportePulseraInicial = null, onFinalizarEntregaPulsera, onCancelarEntregaPulsera }) {
   const rolUsuario = String(usuario?.rol || '').toLowerCase();
   const isAdmin = rolUsuario === 'admin' || rolUsuario === 'administrador';
   const canEdit = permisos?.editar === true;
   const canBulkUpload = isAdmin;
   const canCrearPersonal =
     isAdmin || usuario?.permisos?.personal?.editar === true;
+  const [reporteVinculado, setReporteVinculado] = useState(null);
+  const [guardandoEntrega, setGuardandoEntrega] = useState(false);
+  const guardandoRef = useRef(false);
+  const reporteInicializado = useRef(null);
   const [entregas, setEntregas] = useState([]);
   const [personalList, setPersonalList] = useState([]);
   const [clientesOperaciones, setClientesOperaciones] = useState([]);
@@ -53,6 +58,36 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
       username
     );
   })();
+
+  useEffect(() => {
+    if (!reportePulseraInicial || reporteInicializado.current === reportePulseraInicial.id) return;
+    reporteInicializado.current = reportePulseraInicial.id;
+    setReporteVinculado(reportePulseraInicial);
+    setFormData({
+      fecha: getLocalDateString(), encargado: encargadoAutomatico,
+      nombre: reportePulseraInicial.nombre_receptor || '', dni: reportePulseraInicial.receptor_dni || '',
+      cargo: reportePulseraInicial.receptor_cargo || '', operacion: reportePulseraInicial.operacion || '',
+      cliente_operacion_id: String(reportePulseraInicial.cliente_operacion_id || ''),
+      condicion: 'NUEVO', equipo_tipo: 'PULSERA', marca: '', modelo: '', serie: '',
+      laptop: '', mouse: '', cargador: '', motivo: `Cambio de pulsera por reporte #${reportePulseraInicial.id}`,
+      observaciones: '', tipo_movimiento: 'Entrega'
+    });
+    setActaFile(null);
+    setIsEditing(false);
+    setIsNewPersonal(false);
+    setDniSearchStatus('found');
+    setShowFormModal(true);
+  }, [reportePulseraInicial, encargadoAutomatico]);
+
+  const cerrarFormulario = () => {
+    if (guardandoRef.current) return;
+    setShowFormModal(false);
+    setActaFile(null);
+    if (reporteVinculado) {
+      setReporteVinculado(null);
+      onCancelarEntregaPulsera?.();
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -175,6 +210,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
   };
 
   const openCreateModal = () => {
+    setReporteVinculado(null);
     setFormData({
       fecha: getLocalDateString(), encargado: encargadoAutomatico, nombre: '', dni: '', cargo: '', operacion: '', cliente_operacion_id: '', condicion: 'NUEVO', equipo_tipo: '', marca: '', modelo: '', serie: '', laptop: '', mouse: '', cargador: '', motivo: '', observaciones: '', tipo_movimiento: vista || 'Entrega'
     });
@@ -286,6 +322,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    if (guardandoRef.current) return;
 
     if (!formData.dni || !formData.nombre) {
       toast.error('El DNI y Nombre del receptor son obligatorios');
@@ -299,6 +336,8 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
       return;
     }
 
+    guardandoRef.current = true;
+    setGuardandoEntrega(true);
     try {
       toast.loading('Guardando...', { id: 'save-entrega' });
       if (!canCrearPersonal) {
@@ -345,6 +384,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
 
       dataToSend.set('dni', String(formData.dni || '').trim());
       if (actaFile) dataToSend.append('acta', actaFile);
+      if (reporteVinculado) dataToSend.set('reporte_pulsera_id', String(reporteVinculado.id));
 
       if (isEditing) {
         await api.updateEntrega(formData.id, dataToSend);
@@ -354,9 +394,18 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
         toast.success('Registro guardado correctamente', { id: 'save-entrega' });
       }
       setShowFormModal(false);
-      loadData();
+      setActaFile(null);
+      if (reporteVinculado) {
+        setReporteVinculado(null);
+        onFinalizarEntregaPulsera?.();
+      } else {
+        loadData();
+      }
     } catch (error) {
       toast.error('Error guardando los datos: ' + error.message, { id: 'save-entrega' });
+    } finally {
+      guardandoRef.current = false;
+      setGuardandoEntrega(false);
     }
   };
 
@@ -681,11 +730,14 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
       {showFormModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(16,27,51,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <div className="responsive-modal" style={{ backgroundColor: 'var(--card-bg)', padding: '2rem', borderRadius: '0.5rem', width: '800px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto', position: 'relative' }}>
-            <button onClick={() => setShowFormModal(false)} className="ui-icon-button" style={{ position: 'absolute', top: '1rem', right: '1rem' }} aria-label="Cerrar"><UiIcon name="close" /></button>
+            <button disabled={guardandoEntrega} onClick={cerrarFormulario} className="ui-icon-button" style={{ position: 'absolute', top: '1rem', right: '1rem' }} aria-label="Cerrar"><UiIcon name="close" /></button>
             <h3 style={{ marginTop: 0, borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem', marginBottom: '1rem', fontSize: '1.25rem', color: 'var(--text-primary)' }}>
               {isEditing ? `Editar ${vista || 'Registro'}` : `Nuevo Registro de ${vista || 'Entrega'}`}
             </h3>
 
+            {reporteVinculado && <p style={{ padding: '0.85rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', color: 'var(--text-primary)' }}>
+              Entrega vinculada al reporte PUL-{String(reporteVinculado.id).padStart(4, '0')}. El reporte se cerrará al guardar esta entrega.
+            </p>}
             <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
                 {!vista && (
@@ -736,7 +788,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
                       <input
                         type="text"
                         name="dni"
-                        disabled={dniSearchStatus === 'loading'}
+                        disabled={guardandoEntrega || Boolean(reporteVinculado) || dniSearchStatus === 'loading'}
                         value={formData.dni}
                         onChange={(e) => {
                           handleFormChange(e);
@@ -749,7 +801,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
                       <button
                         type="button"
                         onClick={handleSearchDNI}
-                        disabled={dniSearchStatus === 'loading'}
+                        disabled={guardandoEntrega || Boolean(reporteVinculado) || dniSearchStatus === 'loading'}
                         style={{ padding: '0 1rem', backgroundColor: '#2458e8', color: 'white', border: 'none', borderRadius: '0 0.375rem 0.375rem 0', cursor: 'pointer', fontWeight: 'bold' }}
                       >
                         {dniSearchStatus === 'loading' ? <span className="ui-spinner" /> : <UiIcon name="search" />}
@@ -803,6 +855,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
                     <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Cliente / Operación</label>
                     <select
                       name="cliente_operacion_id"
+                      disabled={Boolean(reporteVinculado)}
                       value={formData.cliente_operacion_id || ''}
                       onChange={e => {
                         const opcion =
@@ -842,7 +895,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem' }}>Tipo Equipo</label>
-                    <input type="text" name="equipo_tipo" value={formData.equipo_tipo} onChange={handleFormChange} placeholder="Laptop, Radio, etc." required style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }} />
+                    <input type="text" name="equipo_tipo" readOnly={Boolean(reporteVinculado)} value={formData.equipo_tipo} onChange={handleFormChange} placeholder="Laptop, Radio, etc." required style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem' }}>Condición</label>
@@ -885,7 +938,12 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
                 <h4 style={{ margin: '0 0 0.75rem 0', color: '#374151' }}>Adjuntar Documento (Opcional)</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Puedes subir el acta escaneada (PDF o Imagen JPG/PNG).</label>
-                  <input type="file" accept=".pdf,image/*" onChange={(e) => setActaFile(e.target.files[0])} style={{ padding: '0.5rem', border: '1px dashed #d1d5db', borderRadius: '0.375rem', backgroundColor: 'var(--bg-color)' }} />
+                  <input type="file" accept=".pdf,image/*" onChange={event => {
+                    const archivo = event.target.files?.[0];
+                    event.target.value = '';
+                    if (archivo) setActaFile(archivo);
+                  }} style={{ padding: '0.5rem', border: '1px dashed #d1d5db', borderRadius: '0.375rem', backgroundColor: 'var(--bg-color)' }} />
+                  <AdjuntosSeleccionados archivos={actaFile ? [actaFile] : []} onQuitar={() => setActaFile(null)} />
                   {formData.documento_url && !actaFile && (
                     <div className="ui-inline-detail" style={{ color: '#0e9f6e', marginTop: '0.35rem' }}><UiIcon name="file" size={15} /> Ya existe un documento adjunto en este registro. Si subes uno nuevo, se reemplazará.</div>
                   )}
@@ -893,9 +951,9 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
-                <button type="button" onClick={() => setShowFormModal(false)} style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: 'var(--card-bg)', cursor: 'pointer' }}>Cancelar</button>
-                <button type="submit" style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: 'none', backgroundColor: '#0e9f6e', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>
-                  {isEditing ? 'Guardar Cambios' : 'Registrar Entrega'}
+                <button type="button" disabled={guardandoEntrega} onClick={cerrarFormulario} style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: 'var(--card-bg)', cursor: 'pointer' }}>Cancelar</button>
+                <button type="submit" disabled={guardandoEntrega} style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: 'none', backgroundColor: '#0e9f6e', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>
+                  {guardandoEntrega ? 'Guardando…' : isEditing ? 'Guardar Cambios' : 'Registrar Entrega'}
                 </button>
               </div>
             </form>
@@ -1007,3 +1065,4 @@ function InventoryExportModal({ vista, categoria, onClose }) {
     </div>
   );
 }
+

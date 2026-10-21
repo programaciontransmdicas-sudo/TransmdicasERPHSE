@@ -776,6 +776,16 @@ export const api = {
       return data;
     },
 
+  cerrarReportePulseraSinCambio: async (id, { motivo, evidencia }) => {
+    const data = new FormData();
+    data.append('motivo', motivo);
+    data.append('evidencia', evidencia);
+    const response = await fetchWithAuth(`${BASE_API_URL}/api/incidentes/pulseras/${id}/cerrar-sin-cambio`, { method: 'POST', body: data });
+    const resultado = await response.json();
+    if (!response.ok) throw new Error(resultado.error || resultado.message || 'No se pudo cerrar el reporte de pulsera');
+    return resultado.reporte;
+  },
+
   updateEstadoReportePulsera:
     async (id, estado) => {
       const response =
@@ -1271,3 +1281,4 @@ export const api = {
       return data;
     },
 };
+

@@ -1,4 +1,4 @@
-import React, {
+import {
   useCallback,
   useEffect,
   useState
@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 
 import { api } from '../services/api';
 import { UiIcon } from './UiIcon';
+import { CerrarReportePulseraModal } from './CerrarReportePulseraModal';
 
 const ESTADOS = [
   'Pendiente',
@@ -60,8 +61,10 @@ const formatearHora = valor =>
     : '—';
 
 export function ReportesPulserasPanel({
-  canManage
+  canManage,
+  onCrearEntrega
 }) {
+  const [reportePorCerrar, setReportePorCerrar] = useState(null);
   const [reportes, setReportes] =
     useState([]);
 
@@ -100,6 +103,10 @@ export function ReportesPulserasPanel({
 
   const cambiarEstado =
     async (id, estado) => {
+      if (estado === 'Resuelto') {
+        setReportePorCerrar(reportes.find(reporte => reporte.id === id));
+        return;
+      }
       try {
         setUpdatingId(id);
 
@@ -217,7 +224,8 @@ export function ReportesPulserasPanel({
                   'Motivo',
                   'Evidencia',
                   'Ingreso',
-                  'Estado'
+                  'Estado',
+                  'Cierre'
                 ].map(titulo => (
                   <th
                     key={titulo}
@@ -338,7 +346,7 @@ export function ReportesPulserasPanel({
                             'Pendiente'
                           }
                           disabled={
-                            updatingId === reporte.id
+                            updatingId === reporte.id || reporte.estado === 'Resuelto'
                           }
                           onChange={event =>
                             cambiarEstado(
@@ -378,6 +386,16 @@ export function ReportesPulserasPanel({
                         </span>
                       )}
                     </td>
+                    <td style={{ padding: '0.85rem', minWidth: '180px', maxWidth: '300px', overflowWrap: 'anywhere' }}>
+                      {reporte.aplica_cambio === true ? (
+                        <span>Cambio de pulsera · Entrega #{reporte.entrega_ti_id}</span>
+                      ) : reporte.aplica_cambio === false ? (
+                        <>
+                          <div style={{ whiteSpace: 'pre-wrap' }}>{reporte.motivo_sin_cambio}</div>
+                          {reporte.evidencia_cierre_url && <a href={reporte.evidencia_cierre_url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: '0.5rem', color: 'var(--primary-color, #2458e8)' }}>Ver evidencia del cierre</a>}
+                        </>
+                      ) : reporte.estado === 'Resuelto' ? 'Cierre anterior' : '—'}
+                    </td>
                   </tr>
                 );
               })}
@@ -385,6 +403,16 @@ export function ReportesPulserasPanel({
           </table>
         </div>
       )}
+      {reportePorCerrar && <CerrarReportePulseraModal
+        key={reportePorCerrar.id}
+        reporte={reportePorCerrar}
+        onClose={() => setReportePorCerrar(null)}
+        onCrearEntrega={onCrearEntrega}
+        onCerrado={cerrado => {
+          setReportes(actuales => actuales.map(reporte => reporte.id === cerrado.id ? { ...reporte, ...cerrado } : reporte));
+          setReportePorCerrar(null);
+        }}
+      />}
     </section>
   );
 }

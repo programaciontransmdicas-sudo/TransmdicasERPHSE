@@ -265,6 +265,15 @@ export const obtenerReportesPulseras =
     const result = await pool.query(
       `SELECT
          pu.id,
+         pu.solicitante_persona_id,
+         pu.receptor_persona_id,
+         receptor.dni AS receptor_dni,
+         receptor.cargo AS receptor_cargo,
+         pu.aplica_cambio,
+         pu.motivo_sin_cambio,
+         pu.evidencia_cierre_url,
+         pu.entrega_ti_id,
+         pu.cerrada_por,
          pu.operacion,
          pu.cliente_operacion_id,
          pu.motivo_renovacion,
@@ -336,7 +345,7 @@ export const actualizarEstadoReportePulsera =
              THEN CURRENT_TIMESTAMP
              ELSE NULL
            END
-       WHERE id = $2
+       WHERE id = $2 AND estado <> 'Resuelto' AND $1::text <> 'Resuelto'
          AND (
            $3::boolean = TRUE
            OR cliente_operacion_id =
@@ -802,3 +811,4 @@ export const eliminarTicketPorId =
 
     return result.rows[0] || null;
   };
+

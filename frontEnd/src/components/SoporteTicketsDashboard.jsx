@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import toast from 'react-hot-toast';
 import { UiIcon } from './UiIcon';
+import { AdjuntosSeleccionados } from './AdjuntosSeleccionados';
 import {
   SolicitudDescargaVideosModal
 } from './SolicitudDescargaVideosModal';
@@ -13,12 +14,12 @@ import {
   ReportesPulserasPanel
 } from './ReportesPulserasPanel';
 
-export function SoporteTicketsDashboard({ permisos, usuario }) {
+export function SoporteTicketsDashboard({ permisos, usuario, onCrearEntregaPulsera, vistaInicial = 'KANBAN' }) {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('Todos');
-  const [activeTab, setActiveTab] = useState('KANBAN'); // 'KANBAN' o 'HISTORIAL'
+  const [activeTab, setActiveTab] = useState(vistaInicial); // 'KANBAN' o 'HISTORIAL'
   const [showModal, setShowModal] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [draggedTicketId, setDraggedTicketId] = useState(null);
@@ -188,24 +189,17 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
     );
   };
   const handleTicketEvidenceChange = (event) => {
-    const archivos = Array.from(event.target.files || []);
-
-    if (archivos.length > 5) {
-      event.target.value = '';
-      setTicketEvidencias([]);
-      return toast.error('Puede adjuntar como máximo 5 imágenes');
+    const nuevos = Array.from(event.target.files || []);
+    event.target.value = '';
+    if (!nuevos.length) return;
+    const archivos = [...ticketEvidencias, ...nuevos];
+    if (archivos.length > 5) return toast.error('Puede adjuntar como máximo 5 imágenes');
+    if (nuevos.some(archivo => !archivo.type.startsWith('image/') || archivo.size === 0)) {
+      return toast.error('Seleccione imágenes que no estén vacías');
     }
-
-    const archivoMuyGrande = archivos.find(
-      archivo => archivo.size > 5 * 1024 * 1024
-    );
-
-    if (archivoMuyGrande) {
-      event.target.value = '';
-      setTicketEvidencias([]);
+    if (nuevos.some(archivo => archivo.size > 5 * 1024 * 1024)) {
       return toast.error('Cada imagen debe pesar como máximo 5 MB');
     }
-
     setTicketEvidencias(archivos);
   };
 
@@ -300,6 +294,11 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
           style={{ display: 'none' }}
         />
       </label>
+
+      <AdjuntosSeleccionados
+        archivos={ticketEvidencias}
+        onQuitar={index => setTicketEvidencias(actuales => actuales.filter((_, i) => i !== index))}
+      />
 
       {ticketEvidencias.length > 0 && (
         <div
@@ -1005,8 +1004,14 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
 
               <small>Una imagen de máximo 5 MB</small>
 
-              <input type="file" accept="image/*" onChange={event => setPulseraEvidencia(event.target.files?.[0] || null)} style={{ display: 'none' }} />
+              <input type="file" accept="image/*" onChange={event => {
+                const archivo = event.target.files?.[0];
+                event.target.value = '';
+                if (archivo) setPulseraEvidencia(archivo);
+              }} style={{ display: 'none' }} />
             </label>
+            <AdjuntosSeleccionados archivos={pulseraEvidencia ? [pulseraEvidencia] : []}
+              disabled={savingPulsera} onQuitar={() => setPulseraEvidencia(null)} />
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '0.5rem' }}>
@@ -1347,6 +1352,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
 
         {activeTab === 'PULSERAS' && (
           <ReportesPulserasPanel
+            onCrearEntrega={onCrearEntregaPulsera}
             canManage={false}
           />
         )}
@@ -1680,6 +1686,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
 
       {activeTab === 'PULSERAS' && (
         <ReportesPulserasPanel
+          onCrearEntrega={onCrearEntregaPulsera}
           canManage={canManage}
         />
       )}
@@ -1995,12 +2002,18 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={(e) => setResolveFormData({ ...resolveFormData, evidencia: e.target.files[0] })}
+                  onChange={event => {
+                    const archivo = event.target.files?.[0];
+                    event.target.value = '';
+                    if (archivo) setResolveFormData(actual => ({ ...actual, evidencia: archivo }));
+                  }}
                   style={{ width: '100%', padding: '0.5rem', border: '1px solid #D1D5DB', borderRadius: '0.5rem' }}
                 />
               </div>
 
               <div>
+                <AdjuntosSeleccionados archivos={resolveFormData.evidencia ? [resolveFormData.evidencia] : []}
+                  onQuitar={() => setResolveFormData(actual => ({ ...actual, evidencia: null }))} />
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--text-primary)' }}>Nota de Resolución (Opcional)</label>
                 <textarea
                   value={resolveFormData.resolucion_desc}
@@ -2021,3 +2034,4 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
     </div>
   );
 }
+

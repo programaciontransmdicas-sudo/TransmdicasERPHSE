@@ -103,7 +103,7 @@ export const contextoTicket =
     const accesoTotal =
       rol === 'admin' ||
       rol === 'ti' ||
-      (rol === 'supervisor' && ['GET', 'HEAD'].includes(req.method));
+      rol === 'supervisor';
 
     const clienteOperacionIds =
       accesoTotal
@@ -111,19 +111,6 @@ export const contextoTicket =
         : normalizarIds(
           req.user.clienteOperacionIds
         );
-
-    if (
-      rol === 'supervisor' &&
-      !accesoTotal &&
-      clienteOperacionIds.length === 0
-    ) {
-      throw Object.assign(
-        new Error(
-          'La cuenta no tiene clientes y operaciones asignados'
-        ),
-        { status: 403 }
-      );
-    }
 
     return {
       rol,
@@ -261,3 +248,4 @@ export const validarRespuestaSolicitudVideo = datos => {
   if (typeof observaciones !== 'string' || observaciones.length > 4000) fallo('Las observaciones deben tener como máximo 4000 caracteres.');
   return { enlacesVideos: [...new Set(enlaces)], observacionesAtencion: observaciones.trim() || null };
 };
+

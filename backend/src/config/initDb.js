@@ -151,7 +151,12 @@ solicitud_descarga_video_placas: [
   'creado_por',
   'fecha_creacion',
   'fecha_cierre',
-  'cliente_operacion_id'
+  'cliente_operacion_id',
+  'aplica_cambio',
+  'motivo_sin_cambio',
+  'evidencia_cierre_url',
+  'entrega_ti_id',
+  'cerrada_por'
 ],
 
   usuarios: [
@@ -441,3 +446,4 @@ export const initDb = async () => {
     'Tablas y columnas requeridas verificadas. Sin cambios en la base de datos.'
   );
 };
+

@@ -83,12 +83,13 @@ const processImageWithWatermark = (file, placa, fecha, hora) => {
   });
 };
 
-function MobileCameraInput({ label, onSelect, preview, setPreview, disabled = false }) {
+function MobileCameraInput({ label, onSelect, preview, setPreview, onRemove, disabled = false }) {
   const fileInputRef = useRef(null);
 
   const handleCapture = (e) => {
-    const file = e.target.files[0];
-    onSelect(file, setPreview);
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) onSelect(file, setPreview);
   };
 
   return (
@@ -117,6 +118,10 @@ function MobileCameraInput({ label, onSelect, preview, setPreview, disabled = fa
           <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
           {preview ? 'Cambiar Foto' : `Tomar Foto`}
         </button>
+        {onRemove && (
+          <button type="button" disabled={disabled} className="ui-button ui-button-secondary"
+            aria-label={`Quitar foto de ${label}`} onClick={onRemove}>Quitar foto</button>
+        )}
         {preview && (
           <img src={preview} alt="Preview" style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '0.25rem', border: '2px solid #0e9f6e' }} />
         )}
@@ -1214,7 +1219,11 @@ function InspectionModal({ onClose, onReload, vehiculosExistentes, editInsp }) {
                   <option>OK</option><option>Error</option><option>Falta revision</option><option>No Aplica</option>
                 </select>
               </div>
-              <MobileCameraInput label="Tablet" disabled={procesandoImagen || guardando} onSelect={(file) => handleImageSelect(file, setImgTablet, setPreviewTablet)} preview={previewTablet} setPreview={setPreviewTablet} />
+              <MobileCameraInput label="Tablet" disabled={procesandoImagen || guardando} onSelect={(file) => handleImageSelect(file, setImgTablet, setPreviewTablet)} preview={previewTablet} setPreview={setPreviewTablet}
+                onRemove={imgTablet ? () => {
+                  setImgTablet(null);
+                  setPreviewTablet(editInsp?.img_tablet ? imgUrl(editInsp.img_tablet) : null);
+                } : undefined} />
             </div>
           </div>
 
@@ -1226,7 +1235,11 @@ function InspectionModal({ onClose, onReload, vehiculosExistentes, editInsp }) {
                   <option>OK</option><option>Error</option><option>Falta revision</option><option>No Aplica</option>
                 </select>
               </div>
-              <MobileCameraInput label="Radio" disabled={procesandoImagen || guardando} onSelect={(file) => handleImageSelect(file, setImgRadio, setPreviewRadio)} preview={previewRadio} setPreview={setPreviewRadio} />
+              <MobileCameraInput label="Radio" disabled={procesandoImagen || guardando} onSelect={(file) => handleImageSelect(file, setImgRadio, setPreviewRadio)} preview={previewRadio} setPreview={setPreviewRadio}
+                onRemove={imgRadio ? () => {
+                  setImgRadio(null);
+                  setPreviewRadio(editInsp?.img_radio ? imgUrl(editInsp.img_radio) : null);
+                } : undefined} />
             </div>
           </div>
 
@@ -1238,7 +1251,11 @@ function InspectionModal({ onClose, onReload, vehiculosExistentes, editInsp }) {
                   <option>OK</option><option>Error</option><option>Falta revision</option><option>No Aplica</option>
                 </select>
               </div>
-              <MobileCameraInput label="Cámaras" disabled={procesandoImagen || guardando} onSelect={(file) => handleImageSelect(file, setImgCamaras, setPreviewCamaras)} preview={previewCamaras} setPreview={setPreviewCamaras} />
+              <MobileCameraInput label="Cámaras" disabled={procesandoImagen || guardando} onSelect={(file) => handleImageSelect(file, setImgCamaras, setPreviewCamaras)} preview={previewCamaras} setPreview={setPreviewCamaras}
+                onRemove={imgCamaras ? () => {
+                  setImgCamaras(null);
+                  setPreviewCamaras(editInsp?.img_camaras ? imgUrl(editInsp.img_camaras) : null);
+                } : undefined} />
             </div>
           </div>
 
@@ -1294,3 +1311,4 @@ function InspectionModal({ onClose, onReload, vehiculosExistentes, editInsp }) {
     </div>
   );
 }
+

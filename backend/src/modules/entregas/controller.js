@@ -1,3 +1,5 @@
+import { crearNotificacionUsuario } from '../notificaciones/repository.js';
+import { registrarEntregaCambioPulsera, idReportePulsera } from '../tickets/cierrePulseras.js';
 import {
   hasPermiso,
   getModuloMovimiento,
@@ -249,7 +251,16 @@ export const listarInventario =
 
 export const registrarMovimiento =
   async (req, res) => {
+    let reportePulseraId = null;
+    let actaSubida = null;
+    let guardado = false;
     try {
+      if (req.body?.reporte_pulsera_id !== undefined && req.body.reporte_pulsera_id !== '') {
+        reportePulseraId = idReportePulsera(req.body.reporte_pulsera_id);
+        if (!hasPermiso(req, 'tickets', 'gestionar')) {
+          return res.status(403).json({ error: 'Solo TI o el administrador pueden registrar la entrega de un cambio de pulsera' });
+        }
+      }
       const tipoMovimiento =
         normalizarTipoMovimiento(
           req.body
@@ -317,6 +328,7 @@ export const registrarMovimiento =
               'entregas_actas',
               resourceType
             );
+          actaSubida = documentoFinal;
         } catch (error) {
           console.error(
             'Error subiendo acta a Cloudinary:',
@@ -332,8 +344,7 @@ export const registrarMovimiento =
         }
       }
 
-      const movimiento =
-        await crearMovimiento({
+      const datosMovimiento = {
           fecha:
             normalizarFecha(
               req.body?.fecha
@@ -397,8 +408,20 @@ export const registrarMovimiento =
 
           documento_url:
             documentoFinal
-        });
-        await logAction(req.user.id,
+        };
+      const movimiento = reportePulseraId
+        ? await registrarEntregaCambioPulsera({ req, reporteId: reportePulseraId, datos: datosMovimiento })
+        : await crearMovimiento(datosMovimiento);
+      guardado = true;
+      if (reportePulseraId && movimiento.reporte_pulsera?.creado_por
+        && Number(movimiento.reporte_pulsera.creado_por) !== Number(req.user.id)) {
+        await crearNotificacionUsuario({
+          usuarioId: movimiento.reporte_pulsera.creado_por,
+          tipo: 'REPORTE_PULSERA_ESTADO', titulo: 'Reporte de pulsera resuelto',
+          mensaje: `El reporte #${reportePulseraId} se cerró con la entrega TI #${movimiento.id}.`, url: 'tickets'
+        }).catch(error => console.error('Error notificando cambio de pulsera:', error.message));
+      }
+      if (!reportePulseraId) await logAction(req.user.id,
           'Creo movimiento de inventario TI',
           'entregas_ti',
           req,
@@ -411,6 +434,12 @@ export const registrarMovimiento =
           movimiento
         );
     } catch (error) {
+      if (reportePulseraId && actaSubida && !guardado) {
+        await deleteFromCloudinary(actaSubida).catch(() => {});
+      }
+      if ([400, 403, 404, 409].includes(error.status)) {
+        return res.status(error.status).json({ error: error.message });
+      }
       if (
         error instanceof
         EntregaValidationError

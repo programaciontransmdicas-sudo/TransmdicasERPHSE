@@ -825,3 +825,199 @@
 .ti-cell.movida { color: #1d4ed8; background: #eff6ff; border-color: #bfdbfe; }
 .ti-movida-texto { font-size: 11px; font-weight: 600; white-space: normal; }
 .ti-rastro-reprogramado { display: block; color: #1d4ed8; font-size: 10px; margin-top: 3px; }
+
+/* El tema del ERP se activa con la clase dark en <html>.
+   Se limita a pantalla para conservar los documentos imprimibles en papel blanco. */
+@media screen {
+  :root.dark .ti {
+    color-scheme: dark;
+    --ti-nav: #2458e8;
+    --ti-nav3: #9bc5ff;
+    --ti-card: var(--card-bg, #111a2c);
+    --ti-bg: var(--bg-secondary, #0d1626);
+    --ti-line: #30425d;
+    --ti-line2: #26364d;
+    --ti-txt: var(--text-primary, #eef1f7);
+    --ti-muted: #b1bfd2;
+    --ti-muted2: #9cacc2;
+    --ti-green: #74e2b3;
+    --ti-greenbg: #153a30;
+    --ti-amber: #ffd082;
+    --ti-amberbg: #3e301b;
+    --ti-red: #ffafa5;
+    --ti-redbg: #43272c;
+    --ti-blue: #a6ceff;
+    --ti-bluebg: #1b324f;
+    --ti-purple: #cfbfff;
+    --ti-purplebg: #34294d;
+    --ti-shadow: 0 4px 16px rgba(0, 0, 0, .2);
+  }
+
+  :root.dark .ti :is(.ti-card, .ti-section, .ti-drawer, .ti-modal) {
+    background: var(--ti-card);
+    color: var(--ti-txt);
+    border-color: var(--ti-line);
+  }
+
+  :root.dark .ti :is(.ti-card > h3, .ti-section-h, .ti-drawer-head,
+    .ti-modal-h, .ti-modal-f) {
+    background: var(--ti-bg);
+    color: var(--ti-txt);
+    border-color: var(--ti-line);
+  }
+
+  :root.dark .ti :is(.ti-matrix table, .ti-table, .ti-section table) {
+    background: var(--ti-card);
+    color: var(--ti-txt);
+  }
+
+  :root.dark .ti :is(.ti-matrix th, .ti-table th, .ti-section th) {
+    background: var(--ti-bg);
+    color: var(--ti-muted);
+  }
+
+  :root.dark .ti .ti-matrix .ti-plate {
+    background: var(--ti-card);
+    color: var(--ti-txt);
+  }
+
+  :root.dark .ti .ti-matrix th.ti-plate {
+    background: var(--ti-bg);
+    color: var(--ti-muted);
+  }
+
+  :root.dark .ti :is(.ti-matrix, .ti-table, .ti-section) tbody tr:hover {
+    background: var(--bg-hover, #16233d);
+  }
+
+  :root.dark .ti .ti-matrix tbody tr:hover .ti-plate {
+    background: var(--bg-hover, #16233d);
+  }
+
+  :root.dark .ti :is(.ti-bar, .ti-field) :is(input, select, textarea) {
+    background: var(--ti-bg);
+    color: var(--ti-txt);
+    border-color: var(--ti-line);
+    color-scheme: dark;
+  }
+
+  :root.dark .ti input::placeholder,
+  :root.dark .ti textarea::placeholder { color: var(--ti-muted2); opacity: 1; }
+
+  :root.dark .ti select option {
+    background: var(--ti-card);
+    color: var(--ti-txt);
+  }
+
+  :root.dark .ti .ti-field :is(input, select, textarea):disabled,
+  :root.dark .ti .ti-readonly {
+    background: var(--ti-line2);
+    color: var(--ti-muted);
+  }
+
+  :root.dark .ti .ti-btn,
+  :root.dark .ti .ti-drawer-head .ti-x {
+    background: var(--ti-card);
+    color: var(--ti-txt);
+    border-color: var(--ti-line);
+  }
+
+  :root.dark .ti .ti-btn:hover:not(:disabled),
+  :root.dark .ti .ti-drawer-head .ti-x:hover {
+    background: var(--bg-hover, #16233d);
+  }
+
+  :root.dark .ti .ti-btn.primary {
+    background: #2458e8;
+    border-color: #2458e8;
+    color: #fff;
+  }
+
+  :root.dark .ti .ti-btn.primary:hover:not(:disabled) { background: #1a46c4; }
+
+  :root.dark .ti .ti-btn.good,
+  :root.dark .ti .ti-cell.done {
+    background: #106849;
+    border-color: #289368;
+    color: #fff;
+  }
+
+  :root.dark .ti .ti-btn.good:hover:not(:disabled) { background: #0c563b; }
+
+  :root.dark .ti .ti-btn.danger {
+    background: var(--ti-redbg);
+    color: var(--ti-red);
+    border-color: #86505a;
+  }
+
+  :root.dark .ti .ti-btn.danger:hover:not(:disabled) { background: #56313a; }
+
+  :root.dark .ti .ti-chip.grey { background: #29364b; }
+  :root.dark .ti .ti-level.m1 { background: var(--ti-bluebg); color: var(--ti-blue); }
+  :root.dark .ti .ti-level.m2 { background: #28486f; color: #d6e9ff; }
+  :root.dark .ti .ti-level.m3 { background: #315d92; color: #fff; }
+  :root.dark .ti .ti-level.annual { border-color: #6e5792; }
+
+  :root.dark .ti .ti-cell {
+    background: #192d47;
+    color: #b9d9ff;
+    border-color: #3b5575;
+  }
+
+  /* Los modificadores conservan su significado sobre la celda base. */
+  :root.dark .ti .ti-cell.done { background: #106849; color: #fff; border-color: #289368; }
+  :root.dark .ti .ti-cell.partial { background: #574020; color: #ffe0a1; border-color: #95713c; }
+  :root.dark .ti .ti-cell.cancel { background: #273447; color: #bcc8d8; border-color: #4c5c71; }
+  :root.dark .ti .ti-cell.late { background: var(--ti-redbg); color: var(--ti-red); border-color: #86505a; }
+  :root.dark .ti .ti-cell.movida { background: var(--ti-bluebg); color: var(--ti-blue); border-color: #577fae; }
+  :root.dark .ti .ti-cell.vacio { background: transparent; color: var(--ti-muted2); border-color: transparent; }
+  :root.dark .ti .ti-cell.mezcla { background: var(--ti-redbg); color: var(--ti-red); border-color: #86505a; }
+  :root.dark .ti .ti-rastro-reprogramado { color: var(--ti-blue); }
+
+  :root.dark .ti .ti-selq { background: var(--ti-bluebg); border-color: var(--ti-line); }
+  :root.dark .ti .ti-selq:hover:not(:disabled) { background: #28486f; }
+  :root.dark .ti .ti-selbar { border-color: #577fae; }
+
+  :root.dark .ti :is(.ti-warnbox, .ti-badbox, .ti-okbox, .ti-infobox) {
+    border-width: 1px;
+    border-style: solid;
+  }
+  :root.dark .ti .ti-warnbox { color: var(--ti-amber); border-color: #8c6b36; }
+  :root.dark .ti .ti-badbox { color: var(--ti-red); border-color: #86505a; }
+  :root.dark .ti .ti-okbox { color: var(--ti-green); border-color: #38715b; }
+  :root.dark .ti .ti-infobox { background: var(--ti-bluebg); color: var(--ti-blue); border-color: #577fae; }
+  :root.dark .ti .ti-orient,
+  :root.dark .ti .ti-orient-vias > li { border-color: #577fae; }
+  :root.dark .ti .ti-orient-tag { color: var(--ti-green); border-color: #38715b; }
+  :root.dark .ti .ti-orient-tag.no { color: var(--ti-red); border-color: #86505a; }
+
+  :root.dark .ti :is(.ti-modal-overlay, .ti-drawer-overlay) { background: rgba(3, 8, 18, .72); }
+
+  :root.dark .ti :is(button, input, select, textarea):focus-visible {
+    outline: 2px solid #9bc5ff;
+    outline-offset: 2px;
+  }
+}
+
+/* Las reglas generales de campos del ERP no deben agrandar las casillas. */
+.ti input:is([type="checkbox"], [type="radio"]) {
+  min-height: 0 !important;
+  padding: 0 !important;
+  background: revert !important;
+  border-radius: revert !important;
+  appearance: auto;
+  accent-color: var(--accent-color, #2458e8);
+  flex-shrink: 0;
+}
+
+.ti .ti-marca { width: 14px; height: 14px; min-width: 14px; }
+
+/* La constancia es un documento: se mantiene legible al abrirla desde el tema oscuro. */
+.ti-constancia {
+  color-scheme: light;
+  --text-primary: #111;
+  --text-secondary: #4b5563;
+  --card-bg: #fff;
+  --th-bg: #f4f6f8;
+  --border-color: #aaa;
+}

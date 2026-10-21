@@ -166,6 +166,8 @@ function App() {
       : "login";
   });// 'public', 'login', 'admin'
   const [activeTab, setActiveTabState] = useState("resumen");
+  const [entregaDesdePulsera, setEntregaDesdePulsera] = useState(null);
+  const [vistaTickets, setVistaTickets] = useState('KANBAN');
   const [isAppLoading, setIsAppLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(false);
@@ -211,7 +213,18 @@ function App() {
     }
   }, [activeTab]);
 
+  const abrirEntregaPulsera = reporte => {
+    setEntregaDesdePulsera(reporte);
+    setActiveTabState('entregas');
+  };
+  const volverAReportesPulseras = () => {
+    setEntregaDesdePulsera(null);
+    setVistaTickets('PULSERAS');
+    setActiveTabState('tickets');
+  };
+
   const setActiveTab = (tab) => {
+    if (tab !== 'entregas') setEntregaDesdePulsera(null);
     setActiveTabState(tab);
     localStorage.setItem("jdcali_tab", tab);
     setIsSidebarOpen(false); // Cierra en móviles al navegar
@@ -670,6 +683,9 @@ function App() {
           {activeTab === "entregas" && hasAccess("entregas") && (
             <EntregasTIDashboard
               vista="Entrega"
+              reportePulseraInicial={entregaDesdePulsera}
+              onFinalizarEntregaPulsera={volverAReportesPulseras}
+              onCancelarEntregaPulsera={volverAReportesPulseras}
               permisos={
                 isAdmin ? { ver: true, editar: true } : user?.permisos?.entregas
               }
@@ -689,6 +705,8 @@ function App() {
           )}
           {activeTab === "tickets" && hasAccess("tickets") && (
             <SoporteTicketsDashboard
+              onCrearEntregaPulsera={abrirEntregaPulsera}
+              vistaInicial={vistaTickets}
               permisos={
                 isAdmin
                   ? { ver: true, editar: true, crear: true, gestionar: true }
@@ -728,3 +746,4 @@ function App() {
 }
 
 export default App;
+

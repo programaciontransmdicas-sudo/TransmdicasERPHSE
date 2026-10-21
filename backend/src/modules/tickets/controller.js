@@ -1,3 +1,4 @@
+import { cerrarPulseraSinCambio } from './cierrePulseras.js';
 import {
   uploadToCloudinary,
   deleteFromCloudinary
@@ -1147,6 +1148,10 @@ export const cambiarEstadoReportePulsera =
       });
     }
 
+    if (estado === 'Resuelto') {
+      return res.status(400).json({ error: 'Indique si aplica un cambio de pulsera para completar el cierre' });
+    }
+
     try {
       const contexto =
         await contextoTicket(
@@ -1222,8 +1227,29 @@ export const cambiarEstadoReportePulsera =
 
 
 // ==========================================
+// CERRAR REPORTE DE PULSERA SIN CAMBIO
+// ==========================================
+
+export const cerrarReportePulseraSinCambio = async (req, res) => {
+  try {
+    const reporte = await cerrarPulseraSinCambio(req);
+    if (Number(reporte.creado_por) !== Number(req.user.id)) {
+      await crearNotificacionUsuario({ usuarioId: reporte.creado_por,
+        tipo: 'REPORTE_PULSERA_ESTADO', titulo: 'Reporte de pulsera resuelto',
+        mensaje: `El reporte #${reporte.id} se cerró sin cambio de pulsera.`, url: 'tickets'
+      }).catch(error => console.error('Error notificando cierre de pulsera:', error.message));
+    }
+    return res.json({ success: true, reporte });
+  } catch (error) {
+    if (![400, 403, 404, 409].includes(error.status)) console.error('Error cerrando reporte de pulsera:', error.message);
+    return res.status(error.status || 500).json({ error: error.status ? error.message : 'No se pudo cerrar el reporte de pulsera' });
+  }
+};
+
+// ==========================================
 // CREAR TICKET DE UNIDAD
 // ==========================================
+
 export const createSupportTicket =
   async (req, res) => {
     const {
@@ -2114,3 +2140,4 @@ export const eliminarTicket =
         });
     }
   };
+

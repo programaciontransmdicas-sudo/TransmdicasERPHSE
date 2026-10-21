@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiTiPr01 } from '../../services/api';
+import { AdjuntosSeleccionados } from '../AdjuntosSeleccionados';
 import { ETIQUETA_EQUIPO } from './dominio';
 
 const MENSAJES = {
@@ -101,6 +102,7 @@ export function EvidenciasOrden({ programaId, orden, bloqueado }) {
   const [motivo, setMotivo] = useState('');
   const [errorRetiro, setErrorRetiro] = useState(null);
   const [mensaje, setMensaje] = useState('');
+  const [pendientes, setPendientes] = useState({});
   const candado = useRef(false);
   const montado = useRef(true);
   const contexto = [programaId, orden.programacion_id, orden.id];
@@ -122,7 +124,7 @@ export function EvidenciasOrden({ programaId, orden, bloqueado }) {
   }, [cargar, orden]);
 
   const ejecutar = async (trabajo, exito, esRetiro = false) => {
-    if (candado.current || bloqueado) return;
+    if (candado.current || bloqueado) return false;
     candado.current = true;
     setOcupado(true); setError(null); setErrorRetiro(null); setMensaje('');
     try {
@@ -131,15 +133,17 @@ export function EvidenciasOrden({ programaId, orden, bloqueado }) {
       setMensaje(exito);
       if (esRetiro) setRetiro(null);
       try { await cargar(); } catch (e) { setError(e); }
+      return true;
     } catch (e) {
       if (!montado.current) return;
       if (esRetiro) setErrorRetiro(e); else setError(e);
+      return false;
     } finally {
       candado.current = false;
       if (montado.current) setOcupado(false);
     }
   };
-  const subir = (apartado, event) => {
+  const seleccionar = (apartado, event) => {
     const archivo = event.target.files?.[0];
     event.target.value = '';
     if (!archivo) return;
@@ -148,7 +152,22 @@ export function EvidenciasOrden({ programaId, orden, bloqueado }) {
     }
     if (archivo.size > 10 * 1024 * 1024) { setError({ code: 'ARCHIVO_DEMASIADO_GRANDE' }); return; }
     if (!archivo.size) { setError({ message: 'La imagen está vacía.' }); return; }
-    ejecutar(() => apiTiPr01.subirEvidenciaOrden(...contexto, apartado.detalle_id, archivo), 'Fotografía agregada.');
+    setError(null);
+    setPendientes(actuales => ({ ...actuales, [apartado.detalle_id]: archivo }));
+  };
+  const quitarPendiente = detalleId => setPendientes(actuales => {
+    const siguientes = { ...actuales };
+    delete siguientes[detalleId];
+    return siguientes;
+  });
+  const subir = async apartado => {
+    const archivo = pendientes[apartado.detalle_id];
+    if (!archivo) return;
+    const guardado = await ejecutar(
+      () => apiTiPr01.subirEvidenciaOrden(...contexto, apartado.detalle_id, archivo),
+      'Fotografía agregada.'
+    );
+    if (guardado && montado.current) quitarPendiente(apartado.detalle_id);
   };
   const estadoOrden = galeria?.estado_orden || orden.estado;
   const puedeGestionarAbierta = rol === 'ti' || rol === 'admin';
@@ -157,7 +176,7 @@ export function EvidenciasOrden({ programaId, orden, bloqueado }) {
   return <section className="ti-card ti-evidence-section" aria-label="Evidencias de la orden">
     <h3>Evidencias fotográficas</h3>
     <div className="ti-pad">
-      <p className="ti-smalltxt">Una fotografía por carga · JPG, PNG o WEBP · máximo 10 MB por imagen.</p>
+      <p className="ti-smalltxt">Selecciona y revisa la fotografía antes de subirla · JPG, PNG o WEBP · máximo 10 MB.</p>
       <ErrorEvidencia error={error} />
       {mensaje && <p role="status">{mensaje}</p>}
       {cargando && <p role="status">Cargando evidencias…</p>}
@@ -195,10 +214,21 @@ export function EvidenciasOrden({ programaId, orden, bloqueado }) {
                 </figure>)}
               </div>
               {!apartado.activas && <p className="ti-smalltxt">Todavía no hay fotografías.</p>}
-              {puedeSubir && apartado.activas < apartado.maximo && <label className="ti-field ti-evidence-upload">
-                <span>Agregar fotografía</span>
-                <input type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" disabled={ocupado || bloqueado} onChange={event => subir(apartado, event)} />
-              </label>}
+              {puedeSubir && apartado.activas < apartado.maximo && <div className="ti-evidence-upload">
+                <label className="ti-field">
+                  <span>Seleccionar fotografía</span>
+                  <input type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                    disabled={ocupado || bloqueado} onChange={event => seleccionar(apartado, event)} />
+                </label>
+                <AdjuntosSeleccionados archivos={pendientes[apartado.detalle_id] ? [pendientes[apartado.detalle_id]] : []}
+                  disabled={ocupado || bloqueado} onQuitar={() => quitarPendiente(apartado.detalle_id)} />
+                {pendientes[apartado.detalle_id] && <div className="ti-bar" style={{ marginTop: 10 }}>
+                  <button type="button" className="ti-btn primary" disabled={ocupado || bloqueado} onClick={() => subir(apartado)}>
+                    {ocupado ? 'Subiendo…' : 'Subir fotografía'}
+                  </button>
+                  <span className="ti-smalltxt">Esta fotografía todavía no se ha guardado.</span>
+                </div>}
+              </div>}
               {apartado.activas >= apartado.maximo && <p className="ti-smalltxt">Se alcanzó el máximo de 4 fotografías.</p>}
               {ultimaProtegida && (
                 <p className="ti-smalltxt">
@@ -225,3 +255,4 @@ export function EvidenciasOrden({ programaId, orden, bloqueado }) {
     </DialogoEvidencia>}
   </section>;
 }
+

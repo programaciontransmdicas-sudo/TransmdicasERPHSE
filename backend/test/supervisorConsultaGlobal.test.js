@@ -40,12 +40,12 @@ test('Consulta global GET y HEAD incluso sin clientes asignados', () => {
   }
 });
 
-test('Las escrituras conservan el alcance asignado y no reciben consulta global', () => {
+test('Las acciones permitidas ya no dependen de asignaciones por operación', () => {
   for (const method of ['POST', 'PUT', 'PATCH', 'DELETE', undefined]) {
     const solicitud = req(method, [15]);
-    assert.equal(auth.tieneAccesoTotalFlota(solicitud), false);
-    assert.deepEqual(auth.obtenerClienteOperacionIds(solicitud), [15]);
-    assert.equal(auth.puedeAccederClienteOperacion(solicitud, 17), false);
+    assert.equal(auth.tieneAccesoTotalFlota(solicitud), true);
+    assert.equal(auth.obtenerClienteOperacionIds(solicitud), null);
+    assert.equal(auth.puedeAccederClienteOperacion(solicitud, 17), true);
     assert.equal(auth.puedeAccederClienteOperacion(solicitud, 15), true);
   }
 });
@@ -69,11 +69,11 @@ test('Tickets y opciones de videos permiten consulta sin asignaciones', async ()
   }
 });
 
-test('Crear tickets mantiene las asignaciones y gestionar sigue prohibido', async () => {
+test('Crear tickets funciona en cualquier operación; gestionar sigue prohibido', async () => {
   const contexto = await contextoTicket(req('POST', [15]), 'crear');
-  assert.equal(contexto.accesoTotal, false);
-  assert.deepEqual(contexto.clienteOperacionIds, [15]);
-  await assert.rejects(contextoTicket(req('POST'), 'crear'), error => error.status === 403);
+  assert.equal(contexto.accesoTotal, true);
+  assert.deepEqual(contexto.clienteOperacionIds, []);
+  assert.equal((await contextoTicket(req('POST'), 'crear')).accesoTotal, true);
   for (const accion of ['editar', 'gestionar']) {
     await assert.rejects(contextoTicket(req('GET'), accion), error => error.status === 403);
   }
@@ -110,3 +110,4 @@ test('Consultar todas las placas no concede administración', () => {
   requireAdmin(req('GET'), res, () => assert.fail('Supervisor no debe convertirse en admin'));
   assert.equal(res.codigo, 403);
 });
+

@@ -26,6 +26,7 @@ import {
   cambiarEstadoSolicitudDescargaVideos,
   listarReportesPulseras,
   cambiarEstadoReportePulsera,
+  cerrarReportePulseraSinCambio,
 } from './controller.js';
 
 // ==========================================
@@ -59,6 +60,13 @@ router.get(
     'ver'
   ),
   listarReportesPulseras
+);
+
+router.post(
+  '/pulseras/:id/cerrar-sin-cambio',
+  requirePermiso('tickets', 'gestionar'),
+  upload.single('evidencia'),
+  cerrarReportePulseraSinCambio
 );
 
 router.patch(

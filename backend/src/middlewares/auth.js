@@ -215,7 +215,7 @@ export const tieneAccesoTotalFlota =
       rol === 'admin' ||
       rol === 'administrador' ||
       rol === 'ti' ||
-      (rol === 'supervisor' && ['GET', 'HEAD'].includes(req.method))
+      rol === 'supervisor'
     );
   };
 
@@ -348,3 +348,4 @@ export const getModuloMovimiento = tipoMovimiento => {
     ? 'devoluciones'
     : 'entregas';
 };
+

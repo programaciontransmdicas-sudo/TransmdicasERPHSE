@@ -238,8 +238,8 @@ export const crearMovimiento =
     precio,
     tipo_movimiento,
     documento_url
-  }) => {
-    const result = await pool.query(
+  }, ejecutor = pool) => {
+    const result = await ejecutor.query(
       `INSERT INTO entregas_ti (
          fecha,
          encargado,
@@ -525,3 +525,4 @@ export const obtenerMovimientosParaExportar =
 
     return result.rows;
   };
+
