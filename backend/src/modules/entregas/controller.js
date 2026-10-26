@@ -255,6 +255,7 @@ export const registrarMovimiento =
     let actaSubida = null;
     let guardado = false;
     try {
+      req.file = req.files?.acta?.[0] || req.file;
       if (req.body?.reporte_pulsera_id !== undefined && req.body.reporte_pulsera_id !== '') {
         reportePulseraId = idReportePulsera(req.body.reporte_pulsera_id);
         if (!hasPermiso(req, 'tickets', 'gestionar')) {
@@ -310,6 +311,10 @@ export const registrarMovimiento =
         });
       }
 
+      const fotografias = [];
+      for (const foto of req.files?.fotografias || []) {
+        fotografias.push(await uploadToCloudinary(foto.buffer, 'entregas_fotografias', 'image'));
+      }
       let documentoFinal =
         req.body
           ?.documento_url ||
@@ -406,6 +411,7 @@ export const registrarMovimiento =
           tipo_movimiento:
             tipoMovimiento,
 
+          fotografias,
           documento_url:
             documentoFinal
         };
@@ -471,6 +477,7 @@ export const registrarMovimiento =
 
 export const editarMovimiento =
   async (req, res) => {
+    req.file = req.files?.acta?.[0] || req.file;
     const { id } =
       req.params;
 
@@ -549,6 +556,10 @@ export const editarMovimiento =
         });
       }
 
+      const fotografias = [];
+      for (const foto of req.files?.fotografias || []) {
+        fotografias.push(await uploadToCloudinary(foto.buffer, 'entregas_fotografias', 'image'));
+      }
       let documentoFinal =
         req.body
           ?.documento_url ||
@@ -655,6 +666,7 @@ export const editarMovimiento =
           tipo_movimiento:
             tipoMovimiento,
 
+          fotografias,
           documento_url:
             documentoFinal,
 

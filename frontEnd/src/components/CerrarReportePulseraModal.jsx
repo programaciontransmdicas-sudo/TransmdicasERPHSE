@@ -54,8 +54,8 @@ export function CerrarReportePulseraModal({ reporte, onClose, onCrearEntrega, on
         <p style={{ color: 'var(--text-secondary)' }}>PUL-{String(reporte.id).padStart(4, '0')} · {reporte.nombre_receptor}</p>
         <form onSubmit={guardar} style={{ display: 'grid', gap: '1rem' }}>
           <fieldset disabled={guardando} style={{ border: '1px solid var(--border-color)', borderRadius: '0.6rem', padding: '1rem' }}>
-            <legend>¿Aplica un cambio de pulsera?</legend>
-            <label style={{ display: 'block', margin: '0.4rem 0' }}><input type="radio" name="aplica_cambio" value="si" required checked={decision === 'si'} onChange={() => setDecision('si')} /> Sí, entregar una nueva pulsera</label>
+            <legend>¿Aplica cambio?</legend>
+            <label style={{ display: 'block', margin: '0.4rem 0' }}><input type="radio" name="aplica_cambio" value="si" required checked={decision === 'si'} onChange={() => setDecision('si')} /> Sí, registrar una entrega TI</label>
             <label style={{ display: 'block', margin: '0.4rem 0' }}><input type="radio" name="aplica_cambio" value="no" required checked={decision === 'no'} onChange={() => setDecision('no')} /> No, cerrar sin cambio</label>
           </fieldset>
           {decision === 'si' && <p style={{ margin: 0, color: 'var(--text-secondary)' }}>Se abrirá una nueva entrega TI para esta persona. El reporte se cerrará cuando registres la entrega.</p>}

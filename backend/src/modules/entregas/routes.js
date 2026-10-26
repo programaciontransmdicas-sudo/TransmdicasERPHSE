@@ -68,7 +68,7 @@ entregasRoutes.get(
 
 entregasRoutes.post(
   '/',
-  upload.single('acta'),
+  upload.fields([{ name: 'acta', maxCount: 1 }, { name: 'fotografias', maxCount: 2 }]),
   registrarMovimiento
 );
 
@@ -78,7 +78,7 @@ entregasRoutes.post(
 
 entregasRoutes.put(
   '/:id',
-  upload.single('acta'),
+  upload.fields([{ name: 'acta', maxCount: 1 }, { name: 'fotografias', maxCount: 2 }]),
   editarMovimiento
 );
 

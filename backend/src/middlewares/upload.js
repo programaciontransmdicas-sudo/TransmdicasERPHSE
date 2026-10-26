@@ -14,6 +14,7 @@ const TIPOS_IMAGEN = new Set([
 ]);
 
 const CAMPOS_IMAGEN = new Set([
+  'fotografias',
   'img_tablet',
   'img_radio',
   'img_camaras',

@@ -1,0 +1,65 @@
+ .../src/components/tiPr01/OrdenesTiPr01.jsx        | 1854 [31m--------------------[m
+ app_flotas_web/src/components/tiPr01/tiPr01.css    |  794 [31m---------[m
+ .../migrations/20261012_019_ti_pr_01_checklist.sql |  143 [32m++[m
+ backend/src/config/initDb.js                       |    3 [32m+[m
+ backend/src/config/permissions.js                  |    2 [32m+[m[31m-[m
+ backend/src/middlewares/security.js                |   13 [32m+[m
+ .../src/modules/programas/historialSupervisor.js   |  119 [32m++[m
+ .../programas/programacion/ordenes/auditoria.js    |    9 [32m+[m[31m-[m
+ .../programas/programacion/ordenes/checklist.js    |  101 [32m++[m
+ .../programas/programacion/ordenes/controller.js   |    3 [32m+[m
+ .../programas/programacion/ordenes/routes.js       |    3 [32m+[m
+ .../programas/programacion/ordenes/service.js      |   15 [32m+[m[31m-[m
+ backend/src/modules/programas/routes.js            |    4 [32m+[m
+ backend/test/auditoriaOt.test.js                   |   18 [32m+[m[31m-[m
+ backend/test/checklistOt.test.js                   |   64 [32m+[m
+ backend/test/evidenciasOt.test.js                  |   47 [32m+[m[31m-[m
+ backend/test/rolesMantenimiento.test.js            |  104 [32m++[m
+ backend/test/tecnicoCierre.test.js                 |    2 [32m+[m
+ {app_flotas_web => frontEnd}/.gitignore            |    0
+ {app_flotas_web => frontEnd}/README.md             |    0
+ {app_flotas_web => frontEnd}/eslint.config.js      |    0
+ {app_flotas_web => frontEnd}/index.html            |    0
+ {app_flotas_web => frontEnd}/package-lock.json     |    0
+ {app_flotas_web => frontEnd}/package.json          |    0
+ {app_flotas_web => frontEnd}/public/bg-trucks.png  |  Bin
+ {app_flotas_web => frontEnd}/public/favicon.svg    |    0
+ {app_flotas_web => frontEnd}/public/icons.svg      |    0
+ {app_flotas_web => frontEnd}/src/App.css           |    0
+ {app_flotas_web => frontEnd}/src/App.jsx           |   11 [32m+[m[31m-[m
+ {app_flotas_web => frontEnd}/src/assets/hero.png   |  Bin
+ {app_flotas_web => frontEnd}/src/assets/react.svg  |    0
+ .../src/assets/transmdicas-logo.png                |  Bin
+ {app_flotas_web => frontEnd}/src/assets/vite.svg   |    0
+ .../src/components/AsistenteERPHSE.jsx             |    0
+ .../src/components/DirectorioPersonal.jsx          |    0
+ .../src/components/EntregasTIDashboard.jsx         |    0
+ .../src/components/FlotasDashboard.jsx             |    0
+ .../src/components/GestionUsuariosDashboard.jsx    |    0
+ .../src/components/Login.jsx                       |    0
+ .../src/components/MaestroFlotaDashboard.jsx       |    0
+ .../src/components/MantenimientoTecnico.jsx        |   20 [32m+[m[31m-[m
+ .../src/components/MantenimientoTecnicoOld.jsx     |    0
+ .../src/components/NotificacionesBell.jsx          |    0
+ .../src/components/PublicPortal.jsx                |    0
+ .../src/components/ReportesDashboard.jsx           |    0
+ .../src/components/ReportesPulserasPanel.jsx       |    0
+ .../src/components/ResumenDashboard.jsx            |    0
+ .../src/components/Sidebar.jsx                     |    0
+ .../components/SolicitudDescargaVideosModal.jsx    |    0
+ .../components/SolicitudesDescargaVideosPanel.jsx  |    0
+ .../src/components/SoporteTicketsDashboard.jsx     |    0
+ .../src/components/UiIcon.jsx                      |    0
+ .../src/components/tiPr01/AuditoriaOrden.jsx       |   15 [32m+[m[31m-[m
+ .../src/components/tiPr01/ConstanciaOrden.jsx      |    0
+ .../src/components/tiPr01/EvidenciasOrden.jsx      |    9 [32m+[m[31m-[m
+ .../src/components/tiPr01/HistorialTiPr01.jsx      |   38 [32m+[m[31m-[m
+ .../src/components/tiPr01/ProgramaTiPr01.jsx       |    0
+ .../src/components/tiPr01/cargarOrdenes.js         |    0
+ .../src/components/tiPr01/constanciaOt.js          |    0
+ .../src/components/tiPr01/dominio.js               |    0
+ {app_flotas_web => frontEnd}/src/index.css         |    0
+ {app_flotas_web => frontEnd}/src/main.jsx          |    0
+ {app_flotas_web => frontEnd}/src/services/api.js   |   24 [32m+[m
+ {app_flotas_web => frontEnd}/vite.config.js        |    0
+ 64 files changed, 724 insertions(+), 2691 deletions(-)

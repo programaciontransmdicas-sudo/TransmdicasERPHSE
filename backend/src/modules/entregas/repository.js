@@ -237,7 +237,8 @@ export const crearMovimiento =
     observaciones,
     precio,
     tipo_movimiento,
-    documento_url
+    documento_url,
+    fotografias = []
   }, ejecutor = pool) => {
     const result = await ejecutor.query(
       `INSERT INTO entregas_ti (
@@ -260,13 +261,13 @@ export const crearMovimiento =
          observaciones,
          precio,
          tipo_movimiento,
-         documento_url
+         documento_url, fotografias
        )
        VALUES (
          $1, $2, $3, $4, $5,
          $6, $7, $8, $9, $10,
          $11, $12, $13, $14, $15,
-         $16, $17, $18, $19, $20
+         $16, $17, $18, $19, $20, $21::jsonb
        )
        RETURNING *`,
       [
@@ -289,7 +290,7 @@ export const crearMovimiento =
         observaciones,
         precio,
         tipo_movimiento,
-        documento_url
+        documento_url, JSON.stringify(fotografias)
       ]
     );
 
@@ -348,12 +349,14 @@ export const actualizarMovimiento =
     precio,
     tipo_movimiento,
     documento_url,
+    fotografias = [],
     accesoTotal,
     clienteOperacionIds
   }) => {
     const result = await pool.query(
       `UPDATE entregas_ti
        SET
+         fotografias = fotografias || $24::jsonb,
          fecha = $1,
          encargado = $2,
          nombre = $3,
@@ -408,7 +411,7 @@ export const actualizarMovimiento =
         documento_url,
         id,
         Boolean(accesoTotal),
-        clienteOperacionIds || []
+        clienteOperacionIds || [], JSON.stringify(fotografias)
       ]
     );
 

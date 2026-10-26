@@ -47,7 +47,7 @@ async function bloquearReporte(client, id) {
 export async function registrarEntregaCambioPulsera({ req, reporteId, datos }) {
   const contexto = await exigirGestion(req);
   const id = idReportePulsera(reporteId);
-  if (datos.tipo_movimiento !== 'Entrega' || String(datos.equipo_tipo || '').trim().toUpperCase() !== 'PULSERA') {
+  if (datos.tipo_movimiento !== 'Entrega' || ["PULSERA", "LAPTOP", "CARGADOR", "MOUSE", "CORREA DE PULSERA", "MONITOR", "TABLET", "MOUSE INALAMBRICO"].includes(String(datos.equipo_tipo || '').trim().toUpperCase()) === false) {
     throw fallo('El cambio requiere registrar una entrega de pulsera');
   }
   const fecha = String(datos.fecha || '');
@@ -68,8 +68,8 @@ export async function registrarEntregaCambioPulsera({ req, reporteId, datos }) {
     const entrega = await crearMovimiento({ ...datos,
       dni: reporte.receptor_dni, nombre: reporte.receptor_nombre, cargo: reporte.receptor_cargo,
       encargado: contexto.nombreSolicitante || req.user.username,
-      equipo_tipo: 'PULSERA', tipo_movimiento: 'Entrega',
-      motivo: `Cambio de pulsera por reporte #${id}`
+      equipo_tipo: String(datos.equipo_tipo).trim().toUpperCase(), tipo_movimiento: 'Entrega',
+      motivo: `Cambio por reporte #${id}`
     }, client);
     if (!entrega?.id) throw new Error('No se pudo registrar la entrega de pulsera');
     const result = await client.query(`UPDATE pulseras SET estado = 'Resuelto', aplica_cambio = TRUE,

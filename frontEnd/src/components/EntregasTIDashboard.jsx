@@ -36,6 +36,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario, reportePulseraIn
   const [formData, setFormData] = useState({
     fecha: '', encargado: '', nombre: '', dni: '', cargo: '', operacion: '', cliente_operacion_id: '', condicion: 'NUEVO', equipo_tipo: '', marca: '', modelo: '', serie: '', laptop: '', mouse: '', cargador: '', motivo: '', observaciones: '', tipo_movimiento: vista || 'Entrega'
   });
+  const [fotografias, setFotografias] = useState([]);
   const [actaFile, setActaFile] = useState(null);
   const [docUrlViewer, setDocUrlViewer] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -69,10 +70,10 @@ export function EntregasTIDashboard({ vista, permisos, usuario, reportePulseraIn
       cargo: reportePulseraInicial.receptor_cargo || '', operacion: reportePulseraInicial.operacion || '',
       cliente_operacion_id: String(reportePulseraInicial.cliente_operacion_id || ''),
       condicion: 'NUEVO', equipo_tipo: 'PULSERA', marca: '', modelo: '', serie: '',
-      laptop: '', mouse: '', cargador: '', motivo: `Cambio de pulsera por reporte #${reportePulseraInicial.id}`,
+      laptop: '', mouse: '', cargador: '', motivo: `Cambio por reporte #${reportePulseraInicial.id}`,
       observaciones: '', tipo_movimiento: 'Entrega'
     });
-    setActaFile(null);
+    setActaFile(null); setFotografias([]);
     setIsEditing(false);
     setIsNewPersonal(false);
     setDniSearchStatus('found');
@@ -82,7 +83,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario, reportePulseraIn
   const cerrarFormulario = () => {
     if (guardandoRef.current) return;
     setShowFormModal(false);
-    setActaFile(null);
+    setActaFile(null); setFotografias([]);
     if (reporteVinculado) {
       setReporteVinculado(null);
       onCancelarEntregaPulsera?.();
@@ -214,7 +215,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario, reportePulseraIn
     setFormData({
       fecha: getLocalDateString(), encargado: encargadoAutomatico, nombre: '', dni: '', cargo: '', operacion: '', cliente_operacion_id: '', condicion: 'NUEVO', equipo_tipo: '', marca: '', modelo: '', serie: '', laptop: '', mouse: '', cargador: '', motivo: '', observaciones: '', tipo_movimiento: vista || 'Entrega'
     });
-    setActaFile(null);
+    setActaFile(null); setFotografias([]);
     setIsEditing(false);
     setIsNewPersonal(false);
     setDniSearchStatus(null);
@@ -237,7 +238,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario, reportePulseraIn
       tipo_movimiento:
         item.tipo_movimiento || 'Entrega'
     });
-    setActaFile(null);
+    setActaFile(null); setFotografias([]);
     setIsEditing(true);
     setIsNewPersonal(false);
     setDniSearchStatus('found'); // Assuming existing records have valid personnel
@@ -384,6 +385,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario, reportePulseraIn
 
       dataToSend.set('dni', String(formData.dni || '').trim());
       if (actaFile) dataToSend.append('acta', actaFile);
+      fotografias.forEach(foto => dataToSend.append('fotografias', foto));
       if (reporteVinculado) dataToSend.set('reporte_pulsera_id', String(reporteVinculado.id));
 
       if (isEditing) {
@@ -394,7 +396,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario, reportePulseraIn
         toast.success('Registro guardado correctamente', { id: 'save-entrega' });
       }
       setShowFormModal(false);
-      setActaFile(null);
+      setActaFile(null); setFotografias([]);
       if (reporteVinculado) {
         setReporteVinculado(null);
         onFinalizarEntregaPulsera?.();
@@ -696,6 +698,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario, reportePulseraIn
 
               <h4 style={{ margin: 0, color: 'var(--text-primary)' }}>Información del Equipo</h4>
               <p style={{ margin: 0 }}><strong>Tipo:</strong> {selectedEntrega.equipo_tipo}</p>
+              {(selectedEntrega.fotografias || []).map((url, i) => <a key={url} href={url} target="_blank" rel="noopener noreferrer"><img src={url} alt={`Fotografía ${i + 1}`} style={{ maxWidth: 180, maxHeight: 140, objectFit: 'contain' }} /></a>)}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                 <p style={{ margin: 0 }}><strong>Marca:</strong> {selectedEntrega.marca || '-'}</p>
                 <p style={{ margin: 0 }}><strong>Modelo:</strong> {selectedEntrega.modelo || '-'}</p>
@@ -895,7 +898,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario, reportePulseraIn
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem' }}>Tipo Equipo</label>
-                    <input type="text" name="equipo_tipo" readOnly={Boolean(reporteVinculado)} value={formData.equipo_tipo} onChange={handleFormChange} placeholder="Laptop, Radio, etc." required style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }} />
+                    <select name="equipo_tipo" value={formData.equipo_tipo} onChange={handleFormChange} required style={{ width: '100%', padding: '0.5rem' }}><option value="">Seleccione un equipo</option><option value="PULSERA">PULSERA</option><option value="LAPTOP">LAPTOP</option><option value="CARGADOR">CARGADOR</option><option value="MOUSE">MOUSE</option><option value="CORREA DE PULSERA">CORREA DE PULSERA</option><option value="MONITOR">MONITOR</option><option value="TABLET">TABLET</option><option value="MOUSE INALAMBRICO">MOUSE INALAMBRICO</option></select>
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem' }}>Condición</label>
@@ -950,6 +953,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario, reportePulseraIn
                 </div>
               </div>
 
+              <div><label>Fotografías (hasta 2 por guardado)</label><input type="file" accept="image/*" multiple disabled={guardandoEntrega} onChange={e => { const fotos = Array.from(e.target.files || []); e.target.value = ''; if (fotos.length + fotografias.length > 2) { toast.error('Seleccione hasta 2 fotografías'); return; } setFotografias(prev => [...prev, ...fotos]); }} /><AdjuntosSeleccionados archivos={fotografias} disabled={guardandoEntrega} onQuitar={index => setFotografias(prev => prev.filter((_, i) => i !== index))} /></div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
                 <button type="button" disabled={guardandoEntrega} onClick={cerrarFormulario} style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: 'var(--card-bg)', cursor: 'pointer' }}>Cancelar</button>
                 <button type="submit" disabled={guardandoEntrega} style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: 'none', backgroundColor: '#0e9f6e', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>
