@@ -28,8 +28,10 @@ test('Permite estados exactos, normaliza observaciones y no convierte pendientes
  assert.deepEqual(prepararActividadChecklist({estado:'NO_APLICA',observacion:' motivo '}),{estado:'NO_APLICA',observacion:'motivo'});
  for(const datos of [null,[],{}, {estado:'realizado',observacion:null},{estado:'REALIZADO',observacion:3},{estado:'REALIZADO',observacion:'x'.repeat(4001)},{estado:'REALIZADO',observacion:null,actualizado_por_id:99}])assert.throws(()=>prepararActividadChecklist(datos));
 });
-test('Supervisor no consulta ni modifica actividades aunque conozca sus IDs',async()=>{
- for(const handler of [listarChecklistOrden,editarActividadChecklist]){const r=res();await handler(req('supervisor'),r);assert.equal(r.codigo,403);}
+test('Supervisor consulta el checklist de solo lectura y no modifica actividades',async()=>{
+ const lectura=res();await listarChecklistOrden(req('supervisor'),lectura);
+ assert.equal(lectura.codigo,200);assert.equal(lectura.datos.editable,false);
+ const escritura=res();await editarActividadChecklist(req('supervisor'),escritura);assert.equal(escritura.codigo,403);
  assert.equal(llamadas.length,0);
 });
 test('Requiere sesión',async()=>{const r=res();await listarChecklistOrden(req('ti',{user:null}),r);assert.equal(r.codigo,401);});

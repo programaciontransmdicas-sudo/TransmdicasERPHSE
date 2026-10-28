@@ -1023,9 +1023,13 @@ export const obtenerOrden = manejar(
       await obtenerDetallesDeOrdenes([orden.id])
     ).get(orden.id);
 
-    return res.json(
-      presentarOrden(orden, detalles)
-    );
+    const respuesta = presentarOrden(orden, detalles);
+    if (String(req.user?.rol || '').trim().toLowerCase() === 'supervisor') {
+      respuesta.acciones = { puede_editar: false, puede_cerrar: false, puede_anular: false,
+        motivo: 'El supervisor tiene acceso de solo lectura.' };
+    }
+    res.setHeader('Cache-Control', 'no-store');
+    return res.json(respuesta);
   },
   {
     ...ERRORES,

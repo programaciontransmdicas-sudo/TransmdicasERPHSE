@@ -613,6 +613,34 @@
    la pagina. Mismo criterio que .ti-matrix. */
 .ti-scroll { overflow-x: auto; }
 
+/* Disponible mientras se recorren las filas, sin llegar al final del historial. */
+.ti-historial-scroll-flotante {
+  position: fixed;
+  z-index: 35;
+  box-sizing: border-box;
+  height: 23px;
+  overflow-x: scroll;
+  overflow-y: hidden;
+  border: 1px solid var(--ti-line);
+  border-radius: 5px;
+  background: var(--ti-card);
+  box-shadow: 0 -3px 12px rgba(11, 32, 56, .15);
+  scrollbar-color: var(--ti-muted) var(--ti-card);
+}
+.ti-historial-scroll-flotante > div { height: 1px; }
+.ti-historial-scroll-flotante::-webkit-scrollbar { height: 19px; }
+.ti-historial-scroll-flotante::-webkit-scrollbar-track { background: var(--ti-card); }
+.ti-historial-scroll-flotante::-webkit-scrollbar-thumb {
+  background: var(--ti-muted);
+  border: 3px solid var(--ti-card);
+  border-radius: 8px;
+}
+.ti-historial-scroll-flotante:focus-visible {
+  outline: 2px solid #2458e8;
+  outline-offset: 1px;
+}
+
+
 .ti-acciones { text-align: right; white-space: nowrap; }
 
 .ti-grid { display: grid; gap: 12px; }

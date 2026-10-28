@@ -31,12 +31,10 @@ const rutasRestringidas = [
   '/api/programas-mantenimiento/1/unidades',
   '/api/programas-mantenimiento/1/frecuencias',
   '/api/programas-mantenimiento/1/programacion',
-  '/api/programas-mantenimiento/1/programacion/1/ordenes-trabajo/1',
-  '/api/programas-mantenimiento/1/programacion/1/ordenes-trabajo/1/evidencias',
   '/api/programas-mantenimiento/1/programacion/1/ordenes-trabajo/1/auditoria'
 ];
 
-test('Supervisor solo accede al GET del historial; bloquea legacy, detalles y escrituras', () => {
+test('Supervisor bloquea rutas generales, auditoría y escrituras', () => {
   for (const path of rutasRestringidas) {
     for (const method of ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE']) {
       const res = respuesta(); let siguiente = false;
@@ -106,4 +104,26 @@ test('La respuesta agrupa órdenes sin perder el total de visitas de la paginaci
   assert.equal(res.datos.visitas[0].ordenes_trabajo.total, 1);
   assert.equal('ordenes' in res.datos.visitas[0], false);
   assert.equal(res.datos.ordenes[0].id, 9);
+});
+
+const baseOt = '/api/programas-mantenimiento/1/programacion/1/ordenes-trabajo/1';
+test('Supervisor consulta detalle, checklist y fotografías pero nunca escribe', () => {
+  for (const sufijo of ['', '/checklist', '/evidencias', '/evidencias/7/imagen']) {
+    for (const barra of ['', '/']) {
+      const path = baseOt + sufijo + barra;
+      let siguiente = false;
+      authorizeRequest({ path, method: 'GET', user: supervisor }, respuesta(), () => { siguiente = true; });
+      assert.equal(siguiente, true, path);
+      for (const method of ['HEAD', 'POST', 'PUT', 'PATCH', 'DELETE']) {
+        const res = respuesta();
+        authorizeRequest({ path, method, user: supervisor }, res, () => assert.fail(path));
+        assert.equal(res.codigo, 403);
+      }
+    }
+  }
+  for (const sufijo of ['/auditoria', '/cerrar', '/anular', '/actividades/7', '/evidencias/7/retirar']) {
+    const res = respuesta();
+    authorizeRequest({ path: baseOt + sufijo, method: 'GET', user: supervisor }, res, () => assert.fail(sufijo));
+    assert.equal(res.codigo, 403);
+  }
 });

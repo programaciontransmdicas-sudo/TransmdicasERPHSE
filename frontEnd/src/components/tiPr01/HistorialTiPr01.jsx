@@ -1,3 +1,6 @@
+import { TablaHistorialDesplazable } from './TablaHistorialDesplazable';
+import { FiltrosFechasOt } from './FiltrosFechasOt';
+import { fechaEjecucionOt, fechaVisibleOt, filtrarYOrdenarFechasOt, CAMPOS_FECHA_OT } from './fechasOt';
 import { formatearPlaca } from '../../utils/formatos';
 // TI-PR-01 · F3 · HISTORIAL
 // ============================================================================
@@ -82,16 +85,6 @@ const Kpi = ({ etiqueta, valor, apoyo, clase }) => (
   </div>
 );
 
-// Un timestamptz llega con hora; en una tabla cronológica estorba. La hora queda en el
-// title, que es donde se consulta si hace falta.
-const dia = valor => {
-  if (!valor) return null;
-
-  const texto = String(valor);
-
-  return texto.length >= 10 ? texto.slice(0, 10) : texto;
-};
-
 // El alcance de un hecho: si hay orden, el que la base congeló al abrirla; si no, el de la
 // visita. Nunca se recalcula nada.
 const alcanceDeHecho = hecho =>
@@ -109,10 +102,9 @@ export function HistorialTiPr01({ onIrAOrden, soloLectura = false }) {
   const [fallidas, setFallidas] = useState(0);
   const [truncado, setTruncado] = useState(false);
 
-  // Filtros de SERVIDOR: el listado de programación admite desde/hasta por quincena, y son
-  // un rango de verdad, no un recorte del lado del cliente.
-  const [desde, setDesde] = useState('');
-  const [hasta, setHasta] = useState('');
+  const [fechas, setFechas] = useState({
+    filtrarPor: 'ejecucion', desde: '', hasta: '', ordenarPor: 'ejecucion', sentido: 'desc'
+  });
   const [recarga, setRecarga] = useState(0);
 
   // Filtros de cliente: se aplican sobre los hechos ya construidos, porque el backend
@@ -134,10 +126,10 @@ export function HistorialTiPr01({ onIrAOrden, soloLectura = false }) {
 
     (async () => {
       try {
-        const filtros = { desde: desde || undefined, hasta: hasta || undefined };
+        // Se cargan todas las páginas: filtrar ejecución/cierre por quincena omitiría OT válidas.
         const datos = soloLectura
-          ? await apiTiPr01.listarHistorialSupervisorCompleto(filtros, abortador.signal)
-          : await cargarProgramaConOrdenes(filtros);
+          ? await apiTiPr01.listarHistorialSupervisorCompleto({}, abortador.signal)
+          : await cargarProgramaConOrdenes();
 
         if (!vivo) return;
 
@@ -158,7 +150,7 @@ export function HistorialTiPr01({ onIrAOrden, soloLectura = false }) {
     })();
 
     return () => { vivo = false; abortador.abort(); };
-  }, [desde, hasta, recarga, soloLectura]);
+  }, [recarga, soloLectura]);
 
   // ------------------------------------------------------------------ hechos
   const hechos = useMemo(() => {
@@ -168,16 +160,7 @@ export function HistorialTiPr01({ onIrAOrden, soloLectura = false }) {
       todos.push(...hechosDeVisita(visita, ordenes));
     }
 
-    // Cronológico inverso: lo más reciente primero. El sello es comparable como texto
-    // porque todas las fechas vienen en ISO.
-    return todos.sort((a, b) => {
-      const sa = String(a.sello ?? '');
-      const sb = String(b.sello ?? '');
-
-      if (sa !== sb) return sb.localeCompare(sa);
-
-      return (b.orden?.id ?? 0) - (a.orden?.id ?? 0);
-    });
+    return todos;
   }, [visitas, ordenes]);
 
   // Cuántas visitas quedaron FUERA por no ser historia. Se dice, no se esconde.
@@ -193,7 +176,7 @@ export function HistorialTiPr01({ onIrAOrden, soloLectura = false }) {
     const texto = busqueda.trim().toUpperCase();
     const soloDigitos = texto.replace(/[^0-9]/g, '');
 
-    return hechos.filter(h => {
+    const coincidentes = hechos.filter(h => {
       if (tipo && h.tipo !== tipo) return false;
 
       if (nivel) {
@@ -211,7 +194,8 @@ export function HistorialTiPr01({ onIrAOrden, soloLectura = false }) {
         || (soloLectura && relacion.includes(texto))
         || (soloDigitos !== '' && h.orden && String(h.orden.id).includes(soloDigitos));
     });
-  }, [hechos, busqueda, tipo, nivel, soloLectura]);
+    return filtrarYOrdenarFechasOt(coincidentes, fechas);
+  }, [hechos, busqueda, tipo, nivel, soloLectura, fechas]);
 
   const totales = useMemo(() => ({
     ejecutadas: hechos.filter(h => h.tipo === TIPOS_HISTORIAL.EJECUTADA).length,
@@ -309,21 +293,6 @@ export function HistorialTiPr01({ onIrAOrden, soloLectura = false }) {
           ))}
         </select>
 
-        <input
-          type="date"
-          value={desde}
-          onChange={event => { setCargando(true); setDesde(event.target.value); }}
-          aria-label="Quincena desde"
-          title="Desde esta quincena"
-        />
-        <input
-          type="date"
-          value={hasta}
-          onChange={event => { setCargando(true); setHasta(event.target.value); }}
-          aria-label="Quincena hasta"
-          title="Hasta esta quincena"
-        />
-
         <span className="ti-smalltxt">
           {filtrados.length} de {hechos.length} hecho(s)
         </span>
@@ -333,12 +302,8 @@ export function HistorialTiPr01({ onIrAOrden, soloLectura = false }) {
         </button>
       </div>
 
-      {(desde || hasta) && (
-        <div className="ti-smalltxt" style={{ marginBottom: 8 }}>
-          El rango corresponde a las quincenas de las visitas. Selecciona el día 1 o 16
-          para indicar el inicio de cada quincena.
-        </div>
-      )}
+      <FiltrosFechasOt valor={fechas} onChange={setFechas} />
+      <p className="ti-smalltxt">Sin fecha de ejecución registrada: —. Las OT abiertas y anuladas siguen visibles sin un rango de fechas.</p>
 
       {truncado && (
         <div className="ti-badbox">
@@ -359,7 +324,7 @@ export function HistorialTiPr01({ onIrAOrden, soloLectura = false }) {
         <h3>
           Historial de intervenciones
           <span className="ti-right ti-smalltxt">
-            {filtrados.length} hecho(s) · lo más reciente primero
+            {filtrados.length} hecho(s) · {CAMPOS_FECHA_OT[fechas.ordenarPor].toLowerCase()} · {fechas.sentido === 'desc' ? 'más recientes primero' : 'más antiguas primero'}
           </span>
         </h3>
 
@@ -376,16 +341,18 @@ export function HistorialTiPr01({ onIrAOrden, soloLectura = false }) {
         ) : filtrados.length === 0 ? (
           <div className="ti-empty">Ningún hecho coincide con el filtro.</div>
         ) : (
-          <div className="ti-scroll">
+          <TablaHistorialDesplazable>
             <table className="ti-table">
               <thead>
                 <tr>
-                  <th>Fecha</th>
+                  <th>Fecha de ejecución</th>
+                  <th>Fecha de cierre</th>
+                  <th>Fecha de apertura</th>
                   <th>Situación</th>
                   <th>OT</th>
                   <th>Unidad</th>
                   {soloLectura && <><th>Cliente</th><th>Operación</th></>}
-                  <th>Quincena</th>
+                  <th>Quincena efectiva</th>
                   <th>Alcance</th>
                   {FAMILIAS.map(f => (
                     <th key={f} style={{ textAlign: 'center' }}>
@@ -394,7 +361,7 @@ export function HistorialTiPr01({ onIrAOrden, soloLectura = false }) {
                   ))}
                   <th>Resultado de la visita</th>
                   <th>Min.</th>
-                  {!soloLectura && <th aria-label="Acciones" />}
+                  <th aria-label="Acciones" />
                 </tr>
               </thead>
               <tbody>
@@ -407,22 +374,14 @@ export function HistorialTiPr01({ onIrAOrden, soloLectura = false }) {
 
                   return (
                     <tr key={clave}>
-                      <td className="ti-mono">
-                        {h.fecha ? (
-                          h.fecha
-                        ) : (
-                          <span
-                            className="ti-smalltxt"
-                            title={
-                              h.tipo === TIPOS_HISTORIAL.ANULADA
-                                ? 'Fecha aproximada basada en la última modificación de la orden'
-                                : 'sin día físico registrado'
-                            }
-                          >
-                            {dia(h.sello) ?? '—'}
-                            {h.fechaAproximada && ' ~'}
-                          </span>
-                        )}
+                      <td className="ti-mono" title="Día en que se realizó el mantenimiento">
+                        {fechaVisibleOt(fechaEjecucionOt(h.orden, h.visita))}
+                      </td>
+                      <td className="ti-mono" title={h.orden?.estado === 'ANULADA' ? 'Registro de anulación en el ERP (hora de Perú)' : 'Registro del cierre en el ERP (hora de Perú)'}>
+                        {fechaVisibleOt(h.orden?.fecha_cierre)}
+                      </td>
+                      <td className="ti-mono" title="Apertura de la OT (hora de Perú)">
+                        {fechaVisibleOt(h.orden?.fecha_apertura)}
                       </td>
 
                       <td>
@@ -527,12 +486,14 @@ export function HistorialTiPr01({ onIrAOrden, soloLectura = false }) {
                         {h.orden?.minutos ?? '—'}
                       </td>
 
-                      {!soloLectura && <td className="ti-acciones">
+                      <td className="ti-acciones">
                         {h.orden && onIrAOrden ? (
                           <button
                             type="button"
                             className="ti-btn small"
                             onClick={() => onIrAOrden({
+                              visita: h.visita,
+                              programaId: h.visita.programa_id ?? programa?.id,
                               programacionId: h.visita.id,
                               otId: h.orden.id
                             })}
@@ -542,13 +503,13 @@ export function HistorialTiPr01({ onIrAOrden, soloLectura = false }) {
                         ) : (
                           <span className="ti-smalltxt">sin orden</span>
                         )}
-                      </td>}
+                      </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
-          </div>
+          </TablaHistorialDesplazable>
         )}
       </div>
 
@@ -593,7 +554,7 @@ export function HistorialTiPr01({ onIrAOrden, soloLectura = false }) {
 
       <div className="ti-legend">
         <span>
-          Cronológico, lo más reciente primero. Una visita puede aportar <b>varias filas</b>:
+          Ordenado por {CAMPOS_FECHA_OT[fechas.ordenarPor].toLowerCase()}; los registros sin esa fecha aparecen al final. Una visita puede aportar <b>varias filas</b>:
           una orden anulada y la que la sustituyó.
         </span>
         <span>
@@ -602,7 +563,7 @@ export function HistorialTiPr01({ onIrAOrden, soloLectura = false }) {
           aquí.
         </span>
         <span>
-          <b>~</b> indica una fecha aproximada cuando no se dispone de la fecha exacta de anulación.
+          La fecha de cierre de una OT anulada corresponde al registro de su anulación. Las visitas canceladas sin OT no tienen fechas de apertura ni cierre.
         </span>
         <span>
           Las anualidades <b>GPS</b> y <b>ADAS</b> van siempre separadas del nivel regular.

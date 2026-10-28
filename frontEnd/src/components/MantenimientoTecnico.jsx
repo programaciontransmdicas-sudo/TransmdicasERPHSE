@@ -1,3 +1,4 @@
+import { HistorialSupervisor } from './tiPr01/HistorialSupervisor';
 import { formatearPlaca } from '../utils/formatos';
 import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../services/api';
@@ -585,7 +586,7 @@ export function MantenimientoTecnico(props) {
           <h2>Historial de mantenimientos técnicos</h2>
           <p>Consulta las intervenciones de todas las unidades.</p>
         </header>
-        <HistorialTiPr01 soloLectura />
+        <HistorialSupervisor />
       </div>
     );
   }

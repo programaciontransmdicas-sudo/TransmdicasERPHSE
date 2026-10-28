@@ -36,7 +36,8 @@ import {
   componenteConFalla,
   obtenerOperacionesUnicas,
   obtenerClientesOperacionesUnicas,
-  validarRespuestaSolicitudVideo
+  validarRespuestaSolicitudVideo,
+  normalizarPlacasSolicitudVideo
 } from './service.js';
 
 import {
@@ -217,53 +218,14 @@ const esFechaDescargaValida =
 
 export const crearSolicitudDescargaVideos =
   async (req, res) => {
-    const placasRecibidas =
-      Array.isArray(
-        req.body?.placas
-      )
-        ? req.body.placas
-        : [];
-
-    const placas = [
-      ...new Set(
-        placasRecibidas
-          .map(placa =>
-            String(placa || '')
-              .trim()
-              .toUpperCase()
-          )
-          .filter(Boolean)
-      )
-    ];
-    const clienteOperacionId =
-      Number(
-        req.body?.cliente_operacion_id
-      );
-
-    const fechaDescarga =
-      String(
-        req.body?.fecha_descarga || ''
-      ).trim();
-
-    const horaInicio =
-      String(
-        req.body?.hora_inicio || ''
-      ).trim();
-
-    const horaFin =
-      String(
-        req.body?.hora_fin || ''
-      ).trim();
-
-    const fechaLlegadaUnidad =
-      String(
-        req.body?.fecha_llegada_unidad || ''
-      ).trim();
-
-    const horaLlegadaUnidad =
-      String(
-        req.body?.hora_llegada_unidad || ''
-      ).trim();
+    let detallesPlacas;
+    try {
+      detallesPlacas = normalizarPlacasSolicitudVideo(req.body);
+    } catch (error) {
+      return res.status(error.status || 400).json({ error: error.message });
+    }
+    const placas = detallesPlacas.map(item => item.placa);
+    const clienteOperacionId = Number(req.body?.cliente_operacion_id);
 
     const motivo =
       String(
@@ -285,45 +247,6 @@ export const crearSolicitudDescargaVideos =
       return res.status(400).json({
         error:
           'Debe seleccionar un cliente y una operación'
-      });
-    }
-
-    if (
-      !esFechaDescargaValida(
-        fechaDescarga
-      )
-    ) {
-      return res.status(400).json({
-        error:
-          'Debe indicar una fecha de descarga válida'
-      });
-    }
-    if (
-      !esFechaDescargaValida(
-        fechaLlegadaUnidad
-      ) ||
-      !HORA_DESCARGA_REGEX.test(
-        horaLlegadaUnidad
-      )
-    ) {
-      return res.status(400).json({
-        error:
-          'Debe indicar una fecha y hora de llegada de la unidad valida'
-      });
-    }
-
-    if (
-      !HORA_DESCARGA_REGEX.test(
-        horaInicio
-      ) ||
-      !HORA_DESCARGA_REGEX.test(
-        horaFin
-      ) ||
-      horaFin <= horaInicio
-    ) {
-      return res.status(400).json({
-        error:
-          'La hora final debe ser posterior a la hora inicial'
       });
     }
 
@@ -419,12 +342,7 @@ export const crearSolicitudDescargaVideos =
         await insertarSolicitudDescargaVideos({
           clienteOperacionId,
           operacion,
-          placas,
-          fechaLlegadaUnidad,
-          horaLlegadaUnidad,
-          fechaDescarga,
-          horaInicio,
-          horaFin,
+          detallesPlacas,
           motivo,
           solicitadoPor:
             req.user.id

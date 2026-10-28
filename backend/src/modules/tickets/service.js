@@ -249,3 +249,31 @@ export const validarRespuestaSolicitudVideo = datos => {
   return { enlacesVideos: [...new Set(enlaces)], observacionesAtencion: observaciones.trim() || null };
 };
 
+
+export const normalizarPlacasSolicitudVideo = datos => {
+  const fallo = mensaje => { throw Object.assign(new Error(mensaje), { status: 400 }); };
+  if (!Array.isArray(datos?.placas) || !datos.placas.length) fallo('Debe seleccionar al menos una placa');
+  const fechaValida = valor => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(valor)) return false;
+    const fecha = new Date(`${valor}T00:00:00Z`);
+    return !Number.isNaN(fecha.getTime()) && fecha.toISOString().slice(0, 10) === valor;
+  };
+  const horaValida = valor => /^([01]\d|2[0-3]):[0-5]\d$/.test(valor);
+  const vistas = new Set();
+  return datos.placas.map(item => {
+    const origen = typeof item === 'string' ? { ...datos, placa: item } : item;
+    if (!origen || typeof origen !== 'object' || Array.isArray(origen) || typeof origen.placa !== 'string') fallo('Una de las placas no es válida');
+    const placa = origen.placa.trim().toUpperCase();
+    if (!placa || placa.length > 20) fallo('Una de las placas no es válida');
+    if (vistas.has(placa)) fallo(`La placa ${placa} está repetida`);
+    vistas.add(placa);
+    const detalle = { placa };
+    for (const campo of ['fecha_llegada_unidad', 'hora_llegada_unidad', 'fecha_descarga', 'hora_inicio', 'hora_fin']) {
+      detalle[campo] = typeof origen[campo] === 'string' ? origen[campo].trim() : '';
+    }
+    if (!fechaValida(detalle.fecha_descarga)) fallo(`${placa}: indique una fecha de descarga válida`);
+    if (!fechaValida(detalle.fecha_llegada_unidad) || !horaValida(detalle.hora_llegada_unidad)) fallo(`${placa}: indique una fecha y hora de llegada válidas`);
+    if (!horaValida(detalle.hora_inicio) || !horaValida(detalle.hora_fin) || detalle.hora_fin <= detalle.hora_inicio) fallo(`${placa}: la hora final debe ser posterior a la hora inicial`);
+    return detalle;
+  });
+};

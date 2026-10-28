@@ -105,12 +105,13 @@ export const authorizeRequest = (
 }
 
   // El supervisor consulta el historial general de mantenimiento sin editarlo.
-  // También bloquea las rutas legacy, los detalles por ID y todas las escrituras.
+  // Permite detalle, checklist y fotografías de OT; bloquea auditoría y escrituras.
   if (
     String(req.user?.rol || '').trim().toLowerCase() === 'supervisor' &&
     rule.modules?.includes('mantenimiento') &&
     !(req.method === 'GET' &&
-      /^\/api\/programas-mantenimiento\/historial-supervisor\/?$/.test(req.path))
+      (/^\/api\/programas-mantenimiento\/historial-supervisor\/?$/.test(req.path) ||
+       /^\/api\/programas-mantenimiento\/[1-9]\d*\/programacion\/[1-9]\d*\/ordenes-trabajo\/[1-9]\d*(?:\/checklist|\/evidencias(?:\/[1-9]\d*\/imagen)?)?\/?$/.test(req.path)))
   ) {
     return res.status(403).json({
       error: 'Solo puedes consultar el historial de mantenimientos'

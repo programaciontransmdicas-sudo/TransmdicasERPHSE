@@ -92,6 +92,8 @@ solicitudes_descarga_videos: [
 
 solicitud_descarga_video_placas: [
   'solicitud_id',
+  'fecha_llegada_unidad', 'hora_llegada_unidad',
+  'fecha_descarga', 'hora_inicio', 'hora_fin',
   'placa'
 ],
 
@@ -366,6 +368,8 @@ const CAMPOS_DATE = [
   'personal.fecha_ingreso',
   'personal.fecha_cese',
   'solicitudes_descarga_videos.fecha_descarga',
+  'solicitud_descarga_video_placas.fecha_descarga',
+  'solicitud_descarga_video_placas.fecha_llegada_unidad',
   // TI-PR-01. El dominio de la quincena y del día de trabajo es DATE, nunca timestamp:
   // sobre estas columnas se calcula la fase, y una hora metida de contrabando desplazaría
   // la zona horaria. Se declaran las que entran en comparaciones o aritmética.

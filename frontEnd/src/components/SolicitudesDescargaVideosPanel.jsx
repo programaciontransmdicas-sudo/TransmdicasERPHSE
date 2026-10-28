@@ -278,15 +278,17 @@ export function SolicitudesDescargaVideosPanel({
                     </td>
 
                     <td style={{ padding: '0.85rem', whiteSpace: 'nowrap' }}>
-                      <strong>{formatearFecha(solicitud.fecha_descarga)}</strong>
-                      <div style={{
-                        marginTop: '0.25rem',
-                        color: 'var(--text-secondary)',
-                        fontSize: '0.82rem'
-                      }}>
-                        {formatearHora(solicitud.hora_inicio)} –{' '}
-                        {formatearHora(solicitud.hora_fin)}
-                      </div>
+                      {(solicitud.detalles_placas || (solicitud.placas || []).map(placa => ({ ...solicitud, placa }))).map(detalle => (
+                        <div key={detalle.placa} style={{ marginBottom: '0.75rem' }}>
+                          <strong>{formatearPlaca(detalle.placa)} · {formatearFecha(detalle.fecha_descarga)}</strong>
+                          <div style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
+                            {formatearHora(detalle.hora_inicio)} – {formatearHora(detalle.hora_fin)}
+                          </div>
+                          <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
+                            Llegada: {formatearFecha(detalle.fecha_llegada_unidad)} {formatearHora(detalle.hora_llegada_unidad)}
+                          </div>
+                        </div>
+                      ))}
                     </td>
 
                     <td style={{

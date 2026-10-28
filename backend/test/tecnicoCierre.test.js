@@ -774,3 +774,16 @@ test('CIERRE · si no se puede recalcular, la transacción de cierre se revierte
   const res = respuesta();await cerrarOrdenTrabajo(solicitud(CARLOS_TI), res);
   assert.equal(res.codigo,500);assert.deepEqual(transaccion(),['BEGIN','ROLLBACK']);
 });
+
+test('PRESENTAR · separa fecha de ejecución física, quincena y sello de cierre', () => {
+  const presentada = presentarOrden(orden({ estado: 'CERRADA', fecha_ejecucion: '2026-10-13', fecha_cierre: '2026-10-27T18:00:00Z' }), []);
+  assert.equal(presentada.visita.fecha_ejecucion, '2026-10-13');
+  assert.equal(presentada.visita.quincena_efectiva, '2026-10-01');
+  assert.equal(presentada.fecha_cierre, '2026-10-27T18:00:00Z');
+});
+
+test('PRESENTAR · una OT anulada no hereda la ejecución de la sustituta', () => {
+  for (const estado of ['ABIERTA', 'ANULADA']) {
+    assert.equal(presentarOrden(orden({ estado, fecha_ejecucion: '2026-10-13' }), []).visita.fecha_ejecucion, null);
+  }
+});

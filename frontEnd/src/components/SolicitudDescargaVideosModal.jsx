@@ -1,5 +1,5 @@
 import { formatearPlaca } from '../utils/formatos';
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 
 import { api } from '../services/api';
@@ -8,11 +8,6 @@ import { UiIcon } from './UiIcon';
 const FORM_INICIAL = {
   cliente_operacion_id: '',
   placas: [],
-  fecha_llegada_unidad: '',
-  hora_llegada_unidad: '',
-  fecha_descarga: '',
-  hora_inicio: '',
-  hora_fin: '',
   motivo: ''
 };
 
@@ -62,7 +57,9 @@ export function SolicitudDescargaVideosModal({
     if (!open) return;
 
     let vigente = true;
-    setLoading(true);
+    Promise.resolve().then(() => {
+      if (vigente) setLoading(true);
+    });
 
     api.getOpcionesSolicitudDescargaVideos()
       .then(data => {
@@ -119,7 +116,7 @@ export function SolicitudDescargaVideosModal({
           ).trim();
 
           const yaSeleccionada =
-            form.placas.includes(placa);
+            form.placas.some(item => item.placa === placa);
 
           const coincide =
             placa
@@ -141,7 +138,7 @@ export function SolicitudDescargaVideosModal({
 
   const agregarPlaca = placa => {
     setForm(actual => {
-      if (actual.placas.includes(placa)) {
+      if (actual.placas.some(item => item.placa === placa)) {
         return actual;
       }
 
@@ -149,7 +146,8 @@ export function SolicitudDescargaVideosModal({
         ...actual,
         placas: [
           ...actual.placas,
-          placa
+          { placa, fecha_llegada_unidad: '', hora_llegada_unidad: '',
+            fecha_descarga: '', hora_inicio: '', hora_fin: '' }
         ]
       };
     });
@@ -161,7 +159,7 @@ export function SolicitudDescargaVideosModal({
     setForm(actual => ({
       ...actual,
       placas: actual.placas.filter(
-        item => item !== placa
+        item => item.placa !== placa
       )
     }));
   };
@@ -174,20 +172,18 @@ export function SolicitudDescargaVideosModal({
     if (
       !form.cliente_operacion_id ||
       form.placas.length === 0 ||
-      !form.fecha_llegada_unidad ||
-      !form.hora_llegada_unidad ||
-      !form.fecha_descarga ||
-      !form.hora_inicio ||
-      !form.hora_fin ||
       !form.motivo.trim()
     ) {
       return toast.error('Complete todos los campos');
     }
 
-    if (form.hora_fin <= form.hora_inicio) {
-      return toast.error(
-        'La hora final debe ser posterior a la hora inicial'
-      );
+    for (const detalle of form.placas) {
+      if (['fecha_llegada_unidad', 'hora_llegada_unidad', 'fecha_descarga', 'hora_inicio', 'hora_fin'].some(campo => !detalle[campo])) {
+        return toast.error(`${detalle.placa}: complete las fechas y horas`);
+      }
+      if (detalle.hora_fin <= detalle.hora_inicio) {
+        return toast.error(`${detalle.placa}: la hora final debe ser posterior a la hora inicial`);
+      }
     }
 
     try {
@@ -258,7 +254,7 @@ export function SolicitudDescargaVideosModal({
               color: 'var(--text-secondary)',
               fontSize: '0.9rem'
             }}>
-              Seleccione las placas y el rango horario solicitado.
+              Agregue las placas e indique la fecha y el horario para cada una.
             </p>
           </div>
 
@@ -458,7 +454,7 @@ export function SolicitudDescargaVideosModal({
                     backgroundColor: 'var(--bg-secondary)',
                     border: '1px solid var(--border-color)'
                   }}>
-                    {form.placas.map(placa => (
+                    {form.placas.map(({ placa }) => (
                       <span
                         key={placa}
                         style={{
@@ -510,166 +506,41 @@ export function SolicitudDescargaVideosModal({
 
           </div>
 
-          <div
-  style={{
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1rem'
-  }}
->
-  <fieldset
-    style={{
-      margin: 0,
-      minWidth: 0,
-      padding: '1rem',
-      border: '1px solid var(--border-color)',
-      borderRadius: '0.75rem'
-    }}
-  >
-    <legend
-      style={{
-        padding: '0 0.5rem',
-        color: 'var(--text-primary)',
-        fontSize: '0.95rem',
-        fontWeight: 600
-      }}
-    >
-      Datos de llegada
-    </legend>
-
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: '1rem'
-      }}
-    >
-      <div>
-        <label style={labelStyle}>
-          Fecha de llegada de la unidad
-        </label>
-
-        <input
-          type="date"
-          required
-          value={form.fecha_llegada_unidad}
-          onChange={event =>
-            setForm({
-              ...form,
-              fecha_llegada_unidad: event.target.value
-            })
-          }
-          style={inputStyle}
-        />
-      </div>
-
-      <div>
-        <label style={labelStyle}>
-          Hora de llegada de la unidad
-        </label>
-
-        <input
-          type="time"
-          required
-          value={form.hora_llegada_unidad}
-          onChange={event =>
-            setForm({
-              ...form,
-              hora_llegada_unidad: event.target.value
-            })
-          }
-          style={inputStyle}
-        />
-      </div>
-    </div>
-  </fieldset>
-
-  <fieldset
-    style={{
-      margin: 0,
-      minWidth: 0,
-      padding: '1rem',
-      border: '1px solid var(--border-color)',
-      borderRadius: '0.75rem'
-    }}
-  >
-    <legend
-      style={{
-        padding: '0 0.5rem',
-        color: 'var(--text-primary)',
-        fontSize: '0.95rem',
-        fontWeight: 600
-      }}
-    >
-      Datos de descarga
-    </legend>
-
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-        gap: '1rem'
-      }}
-    >
-      <div>
-        <label style={labelStyle}>
-          Fecha de la descarga
-        </label>
-
-        <input
-          type="date"
-          required
-          value={form.fecha_descarga}
-          onChange={event =>
-            setForm({
-              ...form,
-              fecha_descarga: event.target.value
-            })
-          }
-          style={inputStyle}
-        />
-      </div>
-
-      <div>
-        <label style={labelStyle}>
-          Hora de inicio de descarga
-        </label>
-
-        <input
-          type="time"
-          required
-          value={form.hora_inicio}
-          onChange={event =>
-            setForm({
-              ...form,
-              hora_inicio: event.target.value
-            })
-          }
-          style={inputStyle}
-        />
-      </div>
-
-      <div>
-        <label style={labelStyle}>
-          Hora de fin de descarga
-        </label>
-
-        <input
-          type="time"
-          required
-          value={form.hora_fin}
-          onChange={event =>
-            setForm({
-              ...form,
-              hora_fin: event.target.value
-            })
-          }
-          style={inputStyle}
-        />
-      </div>
-    </div>
-  </fieldset>
-</div>
+          {form.placas.map(detalle => (
+            <fieldset key={detalle.placa} style={{ margin: 0, minWidth: 0, padding: '1rem',
+              border: '1px solid var(--border-color)', borderRadius: '0.75rem' }}>
+              <legend style={{ padding: '0 0.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                {formatearPlaca(detalle.placa)}
+              </legend>
+              {[
+                ['Datos de llegada', [
+                  ['fecha_llegada_unidad', 'Fecha de llegada de la unidad', 'date'],
+                  ['hora_llegada_unidad', 'Hora de llegada de la unidad', 'time']
+                ]],
+                ['Descarga solicitada', [
+                  ['fecha_descarga', 'Fecha del video solicitado', 'date'],
+                  ['hora_inicio', 'Hora de inicio', 'time'],
+                  ['hora_fin', 'Hora de fin', 'time']
+                ]]
+              ].map(([titulo, campos]) => (
+                <div key={titulo} style={{ marginBottom: '0.8rem' }}>
+                  <p style={labelStyle}>{titulo}</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.8rem' }}>
+                    {campos.map(([campo, etiqueta, tipo]) => (
+                      <label key={campo} style={labelStyle}>
+                        {etiqueta}
+                        <input type={tipo} required value={detalle[campo]} style={inputStyle}
+                          onChange={event => setForm(actual => ({ ...actual,
+                            placas: actual.placas.map(item => item.placa === detalle.placa
+                              ? { ...item, [campo]: event.target.value } : item)
+                          }))} />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </fieldset>
+          ))}
           <div>
             <label style={labelStyle}>Motivo</label>
             <textarea
@@ -705,7 +576,7 @@ export function SolicitudDescargaVideosModal({
             </button>
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || loading}
               className="ui-button ui-button-primary"
             >
               {saving ? 'Guardando...' : 'Guardar solicitud'}

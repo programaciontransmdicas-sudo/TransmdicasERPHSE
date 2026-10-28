@@ -31,7 +31,9 @@ const ids = req => [
 ];
 
 export const listarChecklistOrden = manejar(async (req, res) => {
-  autorizar(req.user);
+  const supervisor = String(req.user?.rol || '').trim().toLowerCase() === 'supervisor';
+  if (!supervisor) autorizar(req.user);
+  else if (!req.user?.id) throw new ValidationError('Se requiere una sesión válida', 401);
   const [programaId, programacionId, otId] = ids(req);
   const orden = await obtenerOrdenPorId(programaId, programacionId, otId);
   if (!orden) throw noEncontrado('La orden no existe en esta programación');
@@ -56,7 +58,7 @@ export const listarChecklistOrden = manejar(async (req, res) => {
   )
     GROUP BY d.id,e.tipo_equipo,e.nivel_mantenimiento ORDER BY d.id`, [otId]);
   res.setHeader('Cache-Control', 'no-store');
-  return res.json({ orden_trabajo_id: otId, editable: orden.estado === 'ABIERTA', apartados: result.rows });
+  return res.json({ orden_trabajo_id: otId, editable: !supervisor && orden.estado === 'ABIERTA', apartados: result.rows });
 }, { mensajeGenerico: 'No se pudo consultar el checklist' });
 
 export const editarActividadChecklist = manejar(async (req, res) => {

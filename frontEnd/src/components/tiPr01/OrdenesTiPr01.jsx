@@ -1,3 +1,5 @@
+import { FiltrosFechasOt } from './FiltrosFechasOt';
+import { diaPeru, fechaEjecucionOt, fechaVisibleOt, filtrarYOrdenarFechasOt } from './fechasOt';
 import { formatearPlaca } from '../../utils/formatos';
 // TI-PR-01 · F2.1 + F2.2 + F2.3 · PANTALLA ÓRDENES DE TRABAJO
 // ============================================================================
@@ -101,15 +103,8 @@ const Alcance = ({ alcance }) => (
   </>
 );
 
-// fecha_apertura y fecha_cierre son timestamptz: llegan con hora. En una tabla estorba,
-// así que se corta el día y la hora se deja en el title.
-const fechaCorta = valor => {
-  if (!valor) return '—';
-
-  const texto = String(valor);
-
-  return texto.length >= 10 ? texto.slice(0, 10) : texto;
-};
+// Los sellos administrativos se presentan en hora de Perú.
+const fechaCorta = fechaVisibleOt;
 
 // ---------------------------------------------------------------------------
 // EDICIÓN · F2.2
@@ -610,8 +605,10 @@ const TecnicoDelCierre = ({
 // Aquí no se decide nada de eso. El formulario recoge los tres campos, valida lo justo
 // para no mandar basura -el formato de la fecha y que los minutos sean un entero- y deja
 // que las siete excepciones de cerrar_orden_trabajo() hablen por sí mismas.
-const ModalCerrar = ({ orden, alcance, trabajando, onCerrarModal, onConfirmar }) => {
+export const ModalCerrar = ({ orden, alcance, trabajando, onCerrarModal, onConfirmar }) => {
   const [fecha, setFecha] = useState('');
+  const [fechaConfirmada, setFechaConfirmada] = useState(false);
+  const hoyPeru = diaPeru(new Date());
   const [minutos, setMinutos] = useState(comoTexto(orden.minutos));
   const [observaciones, setObservaciones] = useState(comoTexto(orden.observaciones));
   const [error, setError] = useState(null);
@@ -623,10 +620,12 @@ const ModalCerrar = ({ orden, alcance, trabajando, onCerrarModal, onConfirmar })
 
   const detalles = orden.detalles?.items ?? [];
   const pendientes = detalles.filter(d => d.estado === 'PENDIENTE');
+  const huboTrabajo = detalles.some(d => ['COMPLETADO', 'PARCIAL'].includes(d.estado));
+  const faltaFecha = huboTrabajo && !fecha;
 
   // Validación de FORMULARIO, no de negocio: el backend exige AAAA-MM-DD y un entero
   // positivo, y mandarle otra cosa solo gasta un viaje.
-  const fechaMal = fecha !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(fecha);
+  const fechaMal = fecha !== '' && (!/^\d{4}-\d{2}-\d{2}$/.test(fecha) || !diaPeru(fecha) || fecha > hoyPeru);
   const minutosMal = minutos.trim() !== '' && !/^[1-9]\d*$/.test(minutos.trim());
 
   const cuerpo = () => {
@@ -717,12 +716,14 @@ const ModalCerrar = ({ orden, alcance, trabajando, onCerrarModal, onConfirmar })
                 id="ti-c-fecha"
                 type="date"
                 value={fecha}
-                onChange={e => { setFecha(e.target.value); setError(null); }}
+                max={hoyPeru}
+                required={huboTrabajo}
+                onChange={e => { setFecha(e.target.value); setFechaConfirmada(false); setError(null); }}
                 disabled={trabajando}
               />
               <div className={fechaMal ? 'ti-smalltxt ti-error' : 'ti-smalltxt'}>
                 {fechaMal
-                  ? 'Formato AAAA-MM-DD'
+                  ? 'Indica una fecha válida que no sea posterior a hoy en Perú.'
                   : 'Indica la fecha en que se realizó el mantenimiento. Es obligatoria si hubo trabajo ejecutado.'}
               </div>
             </div>
@@ -762,9 +763,20 @@ const ModalCerrar = ({ orden, alcance, trabajando, onCerrarModal, onConfirmar })
             />
           </div>
 
-          <div className="ti-smalltxt">
-            Revisa los resultados de todos los equipos antes de cerrar la orden.
+          <div className="ti-warnbox">
+            <b>Fecha de ejecución:</b> {fecha ? fechaVisibleOt(fecha) : 'Sin ejecución registrada'}.{' '}
+            <b>Fecha de cierre:</b> se registrará automáticamente al confirmar, en hora de Perú.
+            <div>La quincena efectiva es el período previsto; no reemplaza el día real del trabajo.</div>
           </div>
+          {faltaFecha && <p role="alert" className="ti-smalltxt ti-error">Indica el día real del mantenimiento antes de confirmar.</p>}
+          <label className="ti-smalltxt" style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+            <input type="checkbox" checked={fechaConfirmada}
+              disabled={trabajando || faltaFecha || fechaMal}
+              onChange={e => setFechaConfirmada(e.target.checked)} />
+            <span>{fecha
+              ? `Confirmo que el mantenimiento se realizó el ${fechaVisibleOt(fecha)}.`
+              : 'Confirmo que esta orden se cierra sin una fecha de ejecución registrada.'}</span>
+          </label>
 
           <Aviso error={error} onCerrar={() => setError(null)} />
         </div>
@@ -781,7 +793,7 @@ const ModalCerrar = ({ orden, alcance, trabajando, onCerrarModal, onConfirmar })
           <button
             type="button"
             className="ti-btn good"
-            disabled={trabajando || fechaMal || minutosMal || faltaTecnico}
+            disabled={trabajando || fechaMal || faltaFecha || !fechaConfirmada || minutosMal || faltaTecnico}
             onClick={async () => {
               setError(null);
               const e = await onConfirmar(cuerpo());
@@ -892,8 +904,8 @@ const ModalAnular = ({ orden, trabajando, onCerrarModal, onConfirmar }) => {
 // ---------------------------------------------------------------------------
 // Solo lectura. Todo lo que se pinta sale de la respuesta del backend; lo que el backend
 // no publica se dice que no lo publica, no se rellena.
-const DetalleOrden = ({
-  programa, programaId, orden, visita, onVolver, onVerEnPrograma,
+export const DetalleOrden = ({
+  programa, programaId, orden, visita, onVolver, onVerEnPrograma, soloLectura = false,
   estadosDetalle, guardando, onGuardarCabecera, onGuardarDetalle,
   trabajando, resultadoCierre, onPedirCierre, onPedirAnulacion
 }) => {
@@ -902,7 +914,7 @@ const DetalleOrden = ({
   const acciones = orden.acciones ?? {};
   const detalles = orden.detalles?.items ?? [];
   // La autoridad sobre si se puede editar es el backend, no el estado leído aquí.
-  const editable = Boolean(acciones.puede_editar);
+  const editable = !soloLectura && Boolean(acciones.puede_editar);
   const permitidas = [
     ['Editar la cabecera', acciones.puede_editar],
     ['Cerrar', acciones.puede_cerrar],
@@ -913,13 +925,13 @@ const DetalleOrden = ({
     <>
       <div className="ti-bar">
         <button type="button" className="ti-btn" onClick={onVolver}>
-          ← Volver a órdenes
+          ← Volver {soloLectura ? 'al historial' : 'a órdenes'}
         </button>
         <Chip estado={orden.estado} />
         <span className="ti-mono ti-smalltxt">
           {codigoOrden(orden)}
         </span>
-        <ConstanciaOrden programa={programa} orden={orden} bloqueado={guardando} />
+        {!soloLectura && <ConstanciaOrden programa={programa} orden={orden} bloqueado={guardando} />}
         {onVerEnPrograma && (
           <button type="button" className="ti-btn small" onClick={onVerEnPrograma}>
             Ver en el programa
@@ -958,13 +970,17 @@ const DetalleOrden = ({
                   <td><Chip estado={orden.estado} /></td>
                 </tr>
                 <tr>
-                  <th>Apertura</th>
+                  <th>Fecha de apertura</th>
                   <td className="ti-mono" title={orden.fecha_apertura ?? ''}>
                     {fechaCorta(orden.fecha_apertura)}
                   </td>
                 </tr>
                 <tr>
-                  <th>Cierre</th>
+                  <th>Fecha de ejecución</th>
+                  <td className="ti-mono">{fechaVisibleOt(fechaEjecucionOt(orden, visita))}</td>
+                </tr>
+                <tr>
+                  <th>Fecha de cierre</th>
                   <td className="ti-mono" title={orden.fecha_cierre ?? ''}>
                     {fechaCorta(orden.fecha_cierre)}
                   </td>
@@ -1175,11 +1191,11 @@ const DetalleOrden = ({
       </ChecklistOrden>
       <EvidenciasOrden programaId={programaId} orden={orden} bloqueado={guardando} />
 
-      <AuditoriaOrden key={orden.id} programaId={programaId} orden={orden} />
+      {!soloLectura && <AuditoriaOrden key={orden.id} programaId={programaId} orden={orden} />}
 
       {/* ACCIONES · las tres capacidades que publica el backend, ya conectadas.
           La condición de cada botón es su propio flag: nunca un estado deducido aquí. */}
-      <div className="ti-card" style={{ marginTop: 12 }}>
+      {!soloLectura && <div className="ti-card" style={{ marginTop: 12 }}>
         <h3>
           Acciones
           <span className="ti-right ti-smalltxt">
@@ -1253,7 +1269,7 @@ const DetalleOrden = ({
             Si abriste esta orden por error, puedes anularla indicando el motivo.
           </div>
         </div>
-      </div>
+      </div>}
     </>
   );
 };
@@ -1283,6 +1299,9 @@ export function OrdenesTiPr01({
 
   const [busqueda, setBusqueda] = useState('');
   const [estadoFiltro, setEstadoFiltro] = useState('');
+  const [fechas, setFechas] = useState({
+    filtrarPor: 'ejecucion', desde: '', hasta: '', ordenarPor: 'ejecucion', sentido: 'desc'
+  });
   const [recarga, setRecarga] = useState(0);
 
   const [abiertaId, setAbiertaId] = useState(null);
@@ -1539,7 +1558,7 @@ export function OrdenesTiPr01({
     const texto = busqueda.trim().toUpperCase();
     const soloDigitos = texto.replace(/[^0-9]/g, '');
 
-    return ordenes.filter(o => {
+    const coincidentes = ordenes.filter(o => {
       if (estadoFiltro && o.estado !== estadoFiltro) return false;
       if (!texto) return true;
 
@@ -1549,7 +1568,9 @@ export function OrdenesTiPr01({
       return placa.replace(/-/g, '').includes(texto.replace(/-/g, ''))
         || (soloDigitos !== '' && String(o.id).includes(soloDigitos));
     });
-  }, [ordenes, busqueda, estadoFiltro]);
+    return filtrarYOrdenarFechasOt(coincidentes.map(orden => ({ orden })), fechas)
+      .map(registro => registro.orden);
+  }, [ordenes, busqueda, estadoFiltro, fechas]);
 
   const abiertas = useMemo(
     () => filtradas.filter(o => o.estado === 'ABIERTA'),
@@ -1736,6 +1757,9 @@ export function OrdenesTiPr01({
         </button>
       </div>
 
+      <FiltrosFechasOt valor={fechas} onChange={setFechas} />
+      <p className="ti-smalltxt">— significa que esa fecha no está registrada. En las OT anuladas, el cierre corresponde al registro de anulación.</p>
+
       {truncado && (
         <div className="ti-badbox">
           La programación llegó <b>incompleta</b>, así que pueden faltar órdenes. Vuelve a
@@ -1768,7 +1792,7 @@ export function OrdenesTiPr01({
             </h3>
             {tabla(
               abiertas,
-              ['OT', 'Unidad', 'Quincena', 'Alcance', 'Técnico', 'Equipos'],
+              ['OT', 'Unidad', 'Fecha de ejecución', 'Fecha de cierre', 'Fecha de apertura', 'Quincena efectiva', 'Alcance', 'Técnico', 'Equipos'],
               orden => {
                 const alcance = alcanceDeOrden(orden);
 
@@ -1776,6 +1800,9 @@ export function OrdenesTiPr01({
                   <tr key={orden.id}>
                     <td className="ti-mono">#{orden.id}</td>
                     <td className="ti-mono">{formatearPlaca(orden.unidad?.placa ?? '—')}</td>
+                    <td className="ti-mono">{fechaVisibleOt(fechaEjecucionOt(orden))}</td>
+                    <td className="ti-mono">{fechaVisibleOt(orden.fecha_cierre)}</td>
+                    <td className="ti-mono">{fechaVisibleOt(orden.fecha_apertura)}</td>
                     <td>{quincenaDe(orden.visita?.quincena_efectiva)?.label ?? '—'}</td>
                     <td><Alcance alcance={alcance} /></td>
                     <td className="ti-smalltxt">
@@ -1788,7 +1815,7 @@ export function OrdenesTiPr01({
                   </tr>
                 );
               },
-              busqueda || estadoFiltro
+              busqueda || estadoFiltro || fechas.desde || fechas.hasta
                 ? 'Ninguna orden abierta coincide con el filtro.'
                 : 'No hay órdenes abiertas. Se crean desde una celda del programa.'
             )}
@@ -1802,7 +1829,7 @@ export function OrdenesTiPr01({
             </h3>
             {tabla(
               historicas,
-              ['OT', 'Unidad', 'Fecha', 'Alcance', 'Resultado por equipo', 'Minutos'],
+              ['OT', 'Unidad', 'Fecha de ejecución', 'Fecha de cierre', 'Quincena efectiva', 'Alcance', 'Resultado por equipo', 'Minutos'],
               orden => {
                 const alcance = alcanceDeOrden(orden);
                 const detalles = orden.detalles?.items ?? [];
@@ -1811,12 +1838,13 @@ export function OrdenesTiPr01({
                   <tr key={orden.id}>
                     <td className="ti-mono">#{orden.id}</td>
                     <td className="ti-mono">{formatearPlaca(orden.unidad?.placa ?? '—')}</td>
-                    <td
-                      className="ti-mono"
-                      title={orden.fecha_cierre ?? orden.fecha_apertura ?? ''}
-                    >
-                      {fechaCorta(orden.fecha_cierre ?? orden.fecha_apertura)}
+                    <td className="ti-mono" title="Día en que se realizó el mantenimiento">
+                      {fechaVisibleOt(fechaEjecucionOt(orden))}
                     </td>
+                    <td className="ti-mono" title="Registro del cierre o anulación en el ERP (hora de Perú)">
+                      {fechaVisibleOt(orden.fecha_cierre)}
+                    </td>
+                    <td>{quincenaDe(orden.visita?.quincena_efectiva)?.label ?? '—'}</td>
                     <td><Alcance alcance={alcance} /></td>
                     <td>
                       {orden.estado === 'ANULADA' ? (
@@ -1850,7 +1878,7 @@ export function OrdenesTiPr01({
                   </tr>
                 );
               },
-              busqueda || estadoFiltro
+              busqueda || estadoFiltro || fechas.desde || fechas.hasta
                 ? 'Ninguna orden cerrada o anulada coincide con el filtro.'
                 : 'Todavía no hay órdenes cerradas ni anuladas.'
             )}

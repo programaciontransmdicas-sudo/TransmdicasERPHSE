@@ -369,15 +369,18 @@ export const insertarSolicitudDescargaVideos =
   async ({
     clienteOperacionId,
     operacion,
-    placas,
-    fechaLlegadaUnidad,
-    horaLlegadaUnidad,
-    fechaDescarga,
-    horaInicio,
-    horaFin,
+    detallesPlacas,
     motivo,
     solicitadoPor
   }) => {
+    // Shared header fields remain available to older readers only when all plates agree.
+    const comun = campo => detallesPlacas.every(item => item[campo] === detallesPlacas[0][campo])
+      ? detallesPlacas[0][campo] : null;
+    const fechaLlegadaUnidad = comun('fecha_llegada_unidad');
+    const horaLlegadaUnidad = comun('hora_llegada_unidad');
+    const fechaDescarga = comun('fecha_descarga');
+    const horaInicio = comun('hora_inicio');
+    const horaFin = comun('hora_fin');
     const client = await pool.connect();
 
     try {
@@ -426,23 +429,24 @@ export const insertarSolicitudDescargaVideos =
 
       await client.query(
         `INSERT INTO solicitud_descarga_video_placas (
-           solicitud_id,
-           placa
+           solicitud_id, placa, fecha_llegada_unidad, hora_llegada_unidad,
+           fecha_descarga, hora_inicio, hora_fin
          )
-         SELECT
-           $1,
-           UNNEST($2::text[])`,
-        [
-          solicitud.id,
-          placas
-        ]
+         SELECT $1, d.placa, d.fecha_llegada_unidad, d.hora_llegada_unidad,
+                d.fecha_descarga, d.hora_inicio, d.hora_fin
+         FROM jsonb_to_recordset($2::jsonb) AS d(
+           placa text, fecha_llegada_unidad date, hora_llegada_unidad time,
+           fecha_descarga date, hora_inicio time, hora_fin time
+         )`,
+        [solicitud.id, JSON.stringify(detallesPlacas)]
       );
 
       await client.query('COMMIT');
 
       return {
         ...solicitud,
-        placas
+        placas: detallesPlacas.map(item => item.placa),
+        detalles_placas: detallesPlacas
       };
     } catch (error) {
       await client.query('ROLLBACK');
@@ -493,7 +497,15 @@ export const obtenerSolicitudesDescargaVideos =
                WHERE sp.placa IS NOT NULL
              ),
              '[]'::json
-           ) AS placas
+           ) AS placas,
+           COALESCE(JSON_AGG(JSON_BUILD_OBJECT(
+             'placa', sp.placa,
+             'fecha_llegada_unidad', COALESCE(sp.fecha_llegada_unidad, s.fecha_llegada_unidad),
+             'hora_llegada_unidad', COALESCE(sp.hora_llegada_unidad, s.hora_llegada_unidad),
+             'fecha_descarga', COALESCE(sp.fecha_descarga, s.fecha_descarga),
+             'hora_inicio', COALESCE(sp.hora_inicio, s.hora_inicio),
+             'hora_fin', COALESCE(sp.hora_fin, s.hora_fin)
+           ) ORDER BY sp.placa) FILTER (WHERE sp.placa IS NOT NULL), '[]'::json) AS detalles_placas
 
          FROM solicitudes_descarga_videos s
 

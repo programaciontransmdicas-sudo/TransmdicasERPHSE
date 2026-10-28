@@ -63,7 +63,8 @@ const COLUMNAS = `
 const UNIDAD = `
   p.programa_unidad_id,
   u.placa,
-  p.quincena_efectiva::text AS quincena_efectiva`;
+  p.quincena_efectiva::text AS quincena_efectiva,
+  p.fecha_ejecucion::text AS fecha_ejecucion`;
 
 // ------------------------------------------------------------------------------------
 // APERTURA

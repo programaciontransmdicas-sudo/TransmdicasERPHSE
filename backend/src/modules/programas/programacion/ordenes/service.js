@@ -496,6 +496,7 @@ export const presentarOrden = (
     programa_unidad_id,
     placa,
     quincena_efectiva,
+    fecha_ejecucion,
     tecnico_nombre,
     cerrada_por_username,
     cerrada_por_nombre,
@@ -537,7 +538,8 @@ export const presentarOrden = (
       },
     visita: {
       id: orden.programacion_id,
-      quincena_efectiva
+      quincena_efectiva,
+      fecha_ejecucion: orden.estado === 'CERRADA' ? fecha_ejecucion ?? null : null
     },
     acciones: accionesDeOrden(orden),
     detalles: {
