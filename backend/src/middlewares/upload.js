@@ -83,6 +83,23 @@ const ticketEvidenceUpload = multer({
 export const receiveTicketEvidence =
   ticketEvidenceUpload.array('evidencias', 20);
 
+// El cierre admite varias fotos y conserva el campo singular de clientes anteriores.
+const ticketClosureEvidenceUpload = multer({
+  storage,
+  fileFilter: filtrarArchivo,
+  limits: {
+    fileSize: 10 * MB,
+    files: 20,
+    fields: 40,
+    fieldSize: 64 * 1024
+  }
+});
+
+export const receiveTicketClosureEvidence = ticketClosureEvidenceUpload.fields([
+  { name: 'evidencias', maxCount: 20 },
+  { name: 'evidencia', maxCount: 1 }
+]);
+
 // =====================================================================================
 // EVIDENCIA FOTOGRAFICA DE TI-PR-01 · F5.2
 // =====================================================================================

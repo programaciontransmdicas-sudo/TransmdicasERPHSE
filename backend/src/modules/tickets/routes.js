@@ -9,7 +9,8 @@ import {
 
 import {
   upload,
-  receiveTicketEvidence
+  receiveTicketEvidence,
+  receiveTicketClosureEvidence
 } from '../../middlewares/upload.js';
 
 import {
@@ -123,9 +124,7 @@ router.get(
 
 router.put(
   '/:id',
-  upload.single(
-    'evidencia'
-  ),
+  receiveTicketClosureEvidence,
   actualizarTicket
 );
 

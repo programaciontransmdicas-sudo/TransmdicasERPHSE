@@ -700,6 +700,7 @@ export const actualizarEstadoTicket =
   async ({
     id,
     estado,
+    evidencias,
     evidencia,
     accesoTotal,
     clienteOperacionIds
@@ -708,20 +709,7 @@ export const actualizarEstadoTicket =
       `UPDATE tickets_unidades
        SET
          estado = $1,
-         evidencias =
-           CASE
-             WHEN $2::text IS NULL
-               THEN evidencias
-             ELSE evidencias ||
-                  jsonb_build_array(
-                    jsonb_build_object(
-                      'tipo',
-                      'cierre',
-                      'url',
-                      $2::text
-                    )
-                  )
-           END
+         evidencias = COALESCE(evidencias, '[]'::jsonb) || $2::jsonb
        FROM vehiculos v
        WHERE tickets_unidades.id = $3
          AND v.placa = tickets_unidades.placa
@@ -733,7 +721,7 @@ export const actualizarEstadoTicket =
        RETURNING tickets_unidades.*`,
       [
         estado,
-        evidencia,
+        JSON.stringify((evidencias || (evidencia ? [evidencia] : [])).map(url => ({ tipo: 'cierre', url }))),
         id,
         Boolean(accesoTotal),
         clienteOperacionIds || []

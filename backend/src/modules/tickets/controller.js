@@ -1599,10 +1599,18 @@ export const actualizarTicket =
     // EVIDENCIA OBLIGATORIA AL RESOLVER
     // ========================================
 
+    const archivosCierre = [
+      ...(Array.isArray(req.files) ? req.files : [
+        ...(req.files?.evidencias || []),
+        ...(req.files?.evidencia || [])
+      ]),
+      ...(req.file ? [req.file] : [])
+    ];
+
     if (
       estadoFinal ===
       'Resuelto' &&
-      !req.file
+      archivosCierre.length === 0
     ) {
       return res
         .status(400)
@@ -1613,11 +1621,17 @@ export const actualizarTicket =
     }
 
 
-    let evidenciaUrl =
-      null;
+    const evidenciasUrls = [];
 
-    let evidenciaPersistida =
-      false;
+    let evidenciasPersistidas = false;
+    const limpiarEvidencias = async () => {
+      const resultados = await Promise.allSettled(
+        evidenciasUrls.map(url => deleteFromCloudinary(url))
+      );
+      resultados.forEach(resultado => {
+        if (resultado.status === 'rejected') console.error('Error retirando evidencia de cierre:', resultado.reason);
+      });
+    };
 
 
     try {
@@ -1651,13 +1665,13 @@ export const actualizarTicket =
       // SUBIR EVIDENCIA DE CIERRE
       // ========================================
 
-      if (req.file) {
-        evidenciaUrl =
-          await uploadToCloudinary(
-            req.file.buffer,
+      for (const archivo of archivosCierre) {
+        const url = await uploadToCloudinary(
+            archivo.buffer,
             'tickets_unidades/evidencias_cierre',
             'image'
           );
+        evidenciasUrls.push(url);
       }
 
 
@@ -1668,8 +1682,8 @@ export const actualizarTicket =
           estado:
             estadoFinal,
 
-          evidencia:
-            evidenciaUrl,
+          evidencias:
+            evidenciasUrls,
 
           accesoTotal:
             contexto.accesoTotal,
@@ -1680,11 +1694,7 @@ export const actualizarTicket =
 
 
       if (!valoresActuales) {
-        if (evidenciaUrl) {
-          await deleteFromCloudinary(
-            evidenciaUrl
-          );
-        }
+        await limpiarEvidencias();
 
         return res
           .status(404)
@@ -1695,10 +1705,7 @@ export const actualizarTicket =
       }
 
 
-      evidenciaPersistida =
-        Boolean(
-          evidenciaUrl
-        );
+      evidenciasPersistidas = true;
 
 
       await logAction(
@@ -1768,19 +1775,13 @@ export const actualizarTicket =
         ticket:
           valoresActuales,
 
-        evidenciaUrl
+        evidenciaUrl: evidenciasUrls[0] || null,
+        evidenciasUrls
       });
 
 
     } catch (error) {
-      if (
-        evidenciaUrl &&
-        !evidenciaPersistida
-      ) {
-        await deleteFromCloudinary(
-          evidenciaUrl
-        );
-      }
+      if (!evidenciasPersistidas) await limpiarEvidencias();
 
 
       console.error(
