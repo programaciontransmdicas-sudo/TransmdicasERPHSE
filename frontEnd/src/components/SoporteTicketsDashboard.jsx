@@ -32,7 +32,8 @@ export function SoporteTicketsDashboard({ permisos, usuario, onCrearEntregaPulse
   // Estados para Modal de Resolución con Evidencia
   const [showResolveModal, setShowResolveModal] = useState(false);
   const [resolvingTicketId, setResolvingTicketId] = useState(null);
-  const [resolveFormData, setResolveFormData] = useState({ resolucion_desc: '', evidencia: null });
+  const [resolveFormData, setResolveFormData] = useState({ resolucion_desc: '', evidencias: [] });
+  const [resolviendoTicket, setResolviendoTicket] = useState(false);
   const [ticketEvidencias, setTicketEvidencias] = useState([]);
   const [showPulseraModal, setShowPulseraModal] = useState(false);
   const [savingPulsera, setSavingPulsera] = useState(false);
@@ -378,7 +379,7 @@ export function SoporteTicketsDashboard({ permisos, usuario, onCrearEntregaPulse
     }
     if (newStatus === 'Resuelto') {
       setResolvingTicketId(id);
-      setResolveFormData({ resolucion_desc: '', evidencia: null });
+      setResolveFormData({ resolucion_desc: '', evidencias: [] });
       setShowResolveModal(true);
       return;
     }
@@ -394,15 +395,17 @@ export function SoporteTicketsDashboard({ permisos, usuario, onCrearEntregaPulse
 
   const handleResolveSubmit = async (e) => {
     e.preventDefault();
+    if (resolviendoTicket) return;
     if (!canManage) {
       toast.error('No tienes permiso para resolver tickets');
       return;
     }
-    if (!resolveFormData.evidencia) {
+    if (!resolveFormData.evidencias.length) {
       return toast.error(
         'Debe adjuntar una evidencia para resolver el ticket'
       );
     }
+    setResolviendoTicket(true);
     try {
       toast.loading('Resolviendo ticket...', { id: 'resolve-ticket' });
       const formData = new FormData();
@@ -413,23 +416,26 @@ export function SoporteTicketsDashboard({ permisos, usuario, onCrearEntregaPulse
       if (resolveFormData.resolucion_desc) {
         formData.append('resolucion_desc', resolveFormData.resolucion_desc);
       }
-      if (resolveFormData.evidencia) {
-        formData.append('evidencia', resolveFormData.evidencia);
+      for (const archivo of resolveFormData.evidencias) {
+        formData.append('evidencias', archivo);
       }
 
-      await api.updateIncidenteConEvidencia(resolvingTicketId, formData);
+      const resultado = await api.updateIncidenteConEvidencia(resolvingTicketId, formData);
       toast.success('Ticket resuelto exitosamente', { id: 'resolve-ticket' });
       setShowResolveModal(false);
       fetchTickets();
       if (selectedTicket && String(selectedTicket.id) === String(resolvingTicketId)) {
         setSelectedTicket({
           ...selectedTicket,
+          ...resultado.ticket,
           estado: 'Resuelto'
         });
       }
     } catch (error) {
       console.error("Error Front-end al resolver ticket:", error);
       toast.error(`Error al resolver ticket: ${error.message}`, { id: 'resolve-ticket' });
+    } finally {
+      setResolviendoTicket(false);
     }
   };
 
@@ -1991,32 +1997,43 @@ export function SoporteTicketsDashboard({ permisos, usuario, onCrearEntregaPulse
 
       {/* Modal Resolución (Adjuntar Evidencia) */}
       {showResolveModal && (
-        <div onClick={() => setShowResolveModal(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(16,27,51,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, backdropFilter: 'blur(5px)', padding: '1rem', animation: 'fadeIn 0.2s ease-out' }}>
+        <div onClick={() => { if (!resolviendoTicket) setShowResolveModal(false); }} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(16,27,51,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, backdropFilter: 'blur(5px)', padding: '1rem', animation: 'fadeIn 0.2s ease-out' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: 'var(--bg-color)', padding: '2rem', borderRadius: '1rem', width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--border-color)', boxShadow: '0 20px 50px -14px rgba(16,27,51,0.28)', animation: 'scaleUp 0.2s ease-out' }}>
             <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '.55rem' }}><UiIcon name="check" /> Resolver Ticket</h3>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>Adjunte una foto del trabajo realizado y/o un comentario opcional para el cierre.</p>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>Adjunte una o varias fotos del trabajo realizado. El comentario de cierre es opcional.</p>
 
             <form onSubmit={handleResolveSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--text-primary)' }}>Evidencia Fotográfica (Obligatoria)</label>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--text-primary)' }}>Evidencias fotográficas (al menos una)</label>
                 <input
                   type="file"
-                  accept="image/*"
+                  multiple
+                  disabled={resolviendoTicket}
+                  accept="image/jpeg,image/png,image/webp,image/gif,image/avif,image/heic,image/heif"
                   onChange={event => {
-                    const archivo = event.target.files?.[0];
+                    const seleccionadas = Array.from(event.target.files || []);
                     event.target.value = '';
-                    if (archivo) setResolveFormData(actual => ({ ...actual, evidencia: archivo }));
+                    const tipos = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'image/heic', 'image/heif'];
+                    if (seleccionadas.some(archivo => !tipos.includes(archivo.type))) return toast.error('Selecciona únicamente fotografías JPG, PNG, WebP, GIF, AVIF, HEIC o HEIF');
+                    if (seleccionadas.some(archivo => archivo.size > 10 * 1024 * 1024)) return toast.error('Cada fotografía debe pesar como máximo 10 MB');
+                    const todas = [...resolveFormData.evidencias, ...seleccionadas];
+                    const unicas = todas.filter((archivo, index) => todas.findIndex(otro => otro.name === archivo.name && otro.size === archivo.size && otro.lastModified === archivo.lastModified) === index);
+                    if (unicas.length > 20) return toast.error('Puedes adjuntar como máximo 20 fotografías por cierre');
+                    setResolveFormData(actual => ({ ...actual, evidencias: unicas }));
                   }}
                   style={{ width: '100%', padding: '0.5rem', border: '1px solid #D1D5DB', borderRadius: '0.5rem' }}
                 />
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', margin: '0.5rem 0 0' }}>{resolveFormData.evidencias.length}/20 fotos · Máximo 10 MB por foto. Puedes añadir fotos en varias selecciones.</p>
               </div>
 
               <div>
-                <AdjuntosSeleccionados archivos={resolveFormData.evidencia ? [resolveFormData.evidencia] : []}
-                  onQuitar={() => setResolveFormData(actual => ({ ...actual, evidencia: null }))} />
+                <AdjuntosSeleccionados archivos={resolveFormData.evidencias}
+                  disabled={resolviendoTicket}
+                  onQuitar={indice => setResolveFormData(actual => ({ ...actual, evidencias: actual.evidencias.filter((_, index) => index !== indice) }))} />
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--text-primary)' }}>Nota de Resolución (Opcional)</label>
                 <textarea
                   value={resolveFormData.resolucion_desc}
+                  disabled={resolviendoTicket}
                   onChange={(e) => setResolveFormData({ ...resolveFormData, resolucion_desc: e.target.value })}
                   placeholder="Se reemplazó el equipo dañado por uno nuevo..."
                   style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #D1D5DB', minHeight: '80px', fontFamily: 'inherit', resize: 'vertical' }}
@@ -2024,8 +2041,8 @@ export function SoporteTicketsDashboard({ permisos, usuario, onCrearEntregaPulse
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
-                <button type="button" onClick={() => setShowResolveModal(false)} style={{ padding: '0.75rem 1.5rem', backgroundColor: 'transparent', border: '1px solid #D1D5DB', color: '#374151', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600' }}>Cancelar</button>
-                <button type="submit" style={{ padding: '0.75rem 1.5rem', backgroundColor: '#0e9f6e', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 6px rgba(14,159,110,0.25)' }}>Cerrar Ticket</button>
+                <button type="button" disabled={resolviendoTicket} onClick={() => setShowResolveModal(false)} style={{ padding: '0.75rem 1.5rem', backgroundColor: 'transparent', border: '1px solid #D1D5DB', color: '#374151', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600' }}>Cancelar</button>
+                <button type="submit" disabled={resolviendoTicket} style={{ padding: '0.75rem 1.5rem', backgroundColor: '#0e9f6e', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 6px rgba(14,159,110,0.25)' }}>{resolviendoTicket ? 'Guardando fotos…' : 'Cerrar Ticket'}</button>
               </div>
             </form>
           </div>
