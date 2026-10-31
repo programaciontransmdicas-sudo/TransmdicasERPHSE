@@ -59,7 +59,8 @@ const formatearHora = valor =>
   valor ? String(valor).slice(0, 5) : '—';
 
 export function SolicitudesDescargaVideosPanel({
-  canManage
+  canManage,
+  isAdmin = false
 }) {
   const [solicitudes, setSolicitudes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -122,7 +123,31 @@ export function SolicitudesDescargaVideosPanel({
       setUpdatingId(null);
     }
   };
+  const eliminarSolicitud = async solicitud => {
+    if (!isAdmin || updatingId !== null) return;
 
+    const confirmado = window.confirm(
+      `¿Eliminar definitivamente la solicitud DVD-${solicitud.id}?`
+    );
+
+    if (!confirmado) return;
+
+    try {
+      setUpdatingId(solicitud.id);
+
+      await api.deleteSolicitudDescargaVideos(solicitud.id);
+
+      setSolicitudes(actuales =>
+        actuales.filter(item => item.id !== solicitud.id)
+      );
+
+      toast.success('Solicitud de videos eliminada');
+    } catch (error) {
+      toast.error(error.message || 'No se pudo eliminar la solicitud');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
   if (loading) {
     return (
       <div style={{
@@ -223,6 +248,11 @@ export function SolicitudesDescargaVideosPanel({
                     {titulo}
                   </th>
                 ))}
+                {isAdmin && (
+                  <th style={{ padding: '0.85rem' }}>
+                    Acciones
+                  </th>
+                )}
               </tr>
             </thead>
 
@@ -348,6 +378,19 @@ export function SolicitudesDescargaVideosPanel({
                         <button type="button" className="ui-button ui-button-secondary" disabled={updatingId === solicitud.id}
                           style={{ marginTop: '0.4rem' }} onClick={() => setRespuesta({ solicitud, soloLectura: false })}>Editar entrega</button>}
                     </td>
+                    {isAdmin && (
+                      <td style={{ padding: '0.85rem' }}>
+                        <button
+                          type="button"
+                          className="ui-button ui-button-danger"
+                          disabled={updatingId !== null}
+                          onClick={() => eliminarSolicitud(solicitud)}
+                        >
+                          <UiIcon name="trash" />
+                          {updatingId === solicitud.id ? 'Procesando…' : 'Eliminar'}
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 );
               })}

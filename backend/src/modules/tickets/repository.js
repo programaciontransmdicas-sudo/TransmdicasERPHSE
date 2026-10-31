@@ -812,3 +812,18 @@ export const eliminarTicketPorId =
     return result.rows[0] || null;
   };
 
+export const eliminarPulseraPorId = async id => {
+  const resultado = await pool.query(
+    `DELETE FROM pulseras HERE id =$1 RETURNING *`,
+    [id]
+  );
+  return resultado.rows[0] || null;
+};
+
+export const eliminarSolicitudVideoPorId = async id => {
+  const resultado = await pool.query(
+    `DELETE FROM solicitudes_descarga_videos WHERE id = $1 RETURNING *`,
+    [id]
+  );
+  return resultado.rows[0] || null;
+}

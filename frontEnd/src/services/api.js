@@ -1280,5 +1280,37 @@ export const api = {
       }
       return data;
     },
-};
+    deleteReportePulsera: async id => {
+  const response = await fetchWithAuth(
+    `${BASE_API_URL}/api/incidentes/pulseras/${id}`,
+    { method: 'DELETE' }
+  );
 
+  const resultado = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(
+      resultado.error || 'No se pudo eliminar el reporte de pulsera'
+    );
+  }
+
+  return resultado;
+},
+
+deleteSolicitudDescargaVideos: async id => {
+  const response = await fetchWithAuth(
+    `${BASE_API_URL}/api/incidentes/solicitudes-descarga-videos/${id}`,
+    { method: 'DELETE' }
+  );
+
+  const resultado = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(
+      resultado.error || 'No se pudo eliminar la solicitud de videos'
+    );
+  }
+
+  return resultado;
+},
+};

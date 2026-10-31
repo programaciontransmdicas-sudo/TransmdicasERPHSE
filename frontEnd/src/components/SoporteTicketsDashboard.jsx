@@ -1353,14 +1353,16 @@ export function SoporteTicketsDashboard({ permisos, usuario, onCrearEntregaPulse
         {activeTab === 'VIDEOS' && (
           <SolicitudesDescargaVideosPanel
             canManage={false}
+            isAdmin={isAdmin}
           />
         )}
 
         {activeTab === 'PULSERAS' && (
           <ReportesPulserasPanel
-            onCrearEntrega={onCrearEntregaPulsera}
-            canManage={false}
-          />
+  onCrearEntrega={onCrearEntregaPulsera}
+  canManage={false}
+  isAdmin={isAdmin}
+/>
         )}
 
         {/* Modal Nuevo Ticket */}
@@ -1685,17 +1687,19 @@ export function SoporteTicketsDashboard({ permisos, usuario, onCrearEntregaPulse
         </div>
       )}
       {activeTab === 'VIDEOS' && (
-        <SolicitudesDescargaVideosPanel
-          canManage={canManage}
-        />
-      )}
+  <SolicitudesDescargaVideosPanel
+    canManage={canManage}
+    isAdmin={isAdmin}
+  />
+)}
 
-      {activeTab === 'PULSERAS' && (
-        <ReportesPulserasPanel
-          onCrearEntrega={onCrearEntregaPulsera}
-          canManage={canManage}
-        />
-      )}
+{activeTab === 'PULSERAS' && (
+  <ReportesPulserasPanel
+    onCrearEntrega={onCrearEntregaPulsera}
+    canManage={canManage}
+    isAdmin={isAdmin}
+  />
+)}
 
       {/* Modal Nuevo Ticket */}
       {canCreate && showModal && (

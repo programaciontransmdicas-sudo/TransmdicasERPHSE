@@ -27,6 +27,8 @@ import {
   actualizarEstadoSolicitudDescargaVideos,
   obtenerReportesPulseras,
   actualizarEstadoReportePulsera,
+  eliminarPulseraPorId,
+  eliminarSolicitudVideoPorId,
 } from './repository.js';
 
 import {
@@ -44,6 +46,7 @@ import {
   crearNotificacionUsuario,
   crearNotificacionesPorRoles
 } from '../notificaciones/repository.js'
+
 
 
 // ==========================================
@@ -2059,4 +2062,62 @@ export const eliminarTicket =
         });
     }
   };
+
+const crearEliminadorReporte = (eliminar,tabla,etiqueta)=>
+  async (req,res) => {
+    const id = String(req.params.id || '');
+    if(!/^[1-9]\d{0,17}$/.test(id)){
+      return res.status(400).json({
+        error: 'El identificador no es valido'
+      });
+    }
+    try{
+      const reporte = await eliminar(id);
+      if(!reporte){
+        return res.status(400).json({
+          error: 'Reporte no encontrado'
+        });
+      }
+      await logAction(
+        req.user.id,
+        `Eliminó ${etiqueta} #${id}`,
+        tabla,
+        req,
+        reporte,
+        null
+      ).catch(error =>{
+        console.error('Error registrando la eliminacion', error);
+      });
+
+      //Solo archivos propios del reporte de pulsera.
+      const archivos = [...new Set ([
+        reporte.evidencia_url,
+        reporte.evidencia_cierre_url
+      ].filter(Boolean))];
+      await Promise.allSettled(
+        archivos.map(url => deleteFromCloudinary(url))
+      );
+
+      return res.json({ success: true});
+    } catch(error){
+      console.error(`Error eliminando ${etiqueta}:`, error);
+      
+      return res.status(error.code === '23503' ? 409 : 500).json({
+        error: error.code === '23503'
+          ? 'El reporte tiene otros registros relacionados y no se puede eliminar.'
+          : 'No se pudo eliminar el reporte.'
+      });
+    }
+  };
+  export const eliminarReportePulsera = crearEliminadorReporte(
+  eliminarPulseraPorId,
+  'pulseras',
+  'reporte de pulsera'
+);
+
+  export const eliminarSolicitudDescargaVideos = crearEliminadorReporte(
+  eliminarSolicitudVideoPorId,
+  'solicitudes_descarga_videos',
+  'solicitud de descarga de videos'
+);
 

@@ -28,6 +28,8 @@ import {
   listarReportesPulseras,
   cambiarEstadoReportePulsera,
   cerrarReportePulseraSinCambio,
+  eliminarReportePulsera,
+eliminarSolicitudDescargaVideos,
 } from './controller.js';
 
 // ==========================================
@@ -127,7 +129,17 @@ router.put(
   receiveTicketClosureEvidence,
   actualizarTicket
 );
+router.delete(
+  '/pulseras/:id',
+  requireAdmin,
+  eliminarReportePulsera
+);
 
+router.delete(
+  '/solicitudes-descarga-videos/:id',
+  requireAdmin,
+  eliminarSolicitudDescargaVideos
+);
 router.delete(
   '/:id',
   requireAdmin,
