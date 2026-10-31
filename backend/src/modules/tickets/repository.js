@@ -814,9 +814,12 @@ export const eliminarTicketPorId =
 
 export const eliminarPulseraPorId = async id => {
   const resultado = await pool.query(
-    `DELETE FROM pulseras HERE id =$1 RETURNING *`,
+    `DELETE FROM pulseras
+     WHERE id = $1
+     RETURNING *`,
     [id]
   );
+
   return resultado.rows[0] || null;
 };
 
