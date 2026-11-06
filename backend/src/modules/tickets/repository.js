@@ -696,41 +696,49 @@ export const obtenerTicketPorId =
     return result.rows[0] || null;
   };
 
-export const actualizarEstadoTicket =
-  async ({
-    id,
-    estado,
-    evidencias,
-    evidencia,
-    accesoTotal,
-    clienteOperacionIds
-  }) => {
-    const result = await pool.query(
-      `UPDATE tickets_unidades
-       SET
-         estado = $1,
-         evidencias = COALESCE(evidencias, '[]'::jsonb) || $2::jsonb
-       FROM vehiculos v
-       WHERE tickets_unidades.id = $3
-         AND v.placa = tickets_unidades.placa
-         AND (
-           $4::boolean = TRUE
-           OR v.cliente_operacion_id =
-              ANY($5::integer[])
-         )
-       RETURNING tickets_unidades.*`,
-      [
-        estado,
-        JSON.stringify((evidencias || (evidencia ? [evidencia] : [])).map(url => ({ tipo: 'cierre', url }))),
-        id,
-        Boolean(accesoTotal),
-        clienteOperacionIds || []
-      ]
-    );
+export const actualizarEstadoTicket = async ({
+  id,
+  estado,
+  evidencias,
+  evidencia,
+  resolucionDesc = null,
+  accesoTotal,
+  clienteOperacionIds
+}) => {
+  const urls = evidencias || (evidencia ? [evidencia] : []);
 
-    return result.rows[0] || null;
-  };
+  const resultado = await pool.query(
+    `UPDATE tickets_unidades
+     SET
+       estado = $1,
+       evidencias = COALESCE(evidencias, '[]'::jsonb) || $2::jsonb,
+       resolucion_desc = CASE
+         WHEN $1::text = 'Resuelto' THEN $6::text
+         ELSE tickets_unidades.resolucion_desc
+       END
+     FROM vehiculos v
+     WHERE tickets_unidades.id = $3
+       AND v.placa = tickets_unidades.placa
+       AND (
+         $4::boolean = TRUE
+         OR v.cliente_operacion_id = ANY($5::integer[])
+       )
+     RETURNING tickets_unidades.*`,
+    [
+      estado,
+      JSON.stringify(urls.map(url => ({
+        tipo: 'cierre',
+        url
+      }))),
+      id,
+      Boolean(accesoTotal),
+      clienteOperacionIds || [],
+      resolucionDesc
+    ]
+  );
 
+  return resultado.rows[0] || null;
+};
 // ==========================================
 // INSPECCIÓN RELACIONADA
 // ==========================================

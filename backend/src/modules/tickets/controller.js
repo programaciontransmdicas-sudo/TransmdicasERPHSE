@@ -1678,22 +1678,14 @@ export const actualizarTicket =
       }
 
 
-      const valoresActuales =
-        await actualizarEstadoTicket({
-          id,
-
-          estado:
-            estadoFinal,
-
-          evidencias:
-            evidenciasUrls,
-
-          accesoTotal:
-            contexto.accesoTotal,
-
-          clienteOperacionIds:
-            contexto.clienteOperacionIds
-        });
+      const valoresActuales = await actualizarEstadoTicket({
+  id,
+  estado: estadoFinal,
+  evidencias: evidenciasUrls,
+  resolucionDesc: String(resolucion_desc ?? '').trim(),
+  accesoTotal: contexto.accesoTotal,
+  clienteOperacionIds: contexto.clienteOperacionIds
+});
 
 
       if (!valoresActuales) {

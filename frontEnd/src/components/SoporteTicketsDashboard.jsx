@@ -75,21 +75,21 @@ export function SoporteTicketsDashboard({ permisos, usuario, onCrearEntregaPulse
 
   const [opcionesTicket, setOpcionesTicket] = useState(null);
   const cerrarModalTicket = () => {
-  setShowModal(false);
+    setShowModal(false);
 
-  setFormData({
-    placa: '',
-    persona_id: '',
-    tipo_solicitud: 'Soporte Técnico',
-    implemento: '',
-    descripcion: '',
-    fecha_llegada_unidad: '',
-    hora_llegada_unidad: ''
-  });
+    setFormData({
+      placa: '',
+      persona_id: '',
+      tipo_solicitud: 'Soporte Técnico',
+      implemento: '',
+      descripcion: '',
+      fecha_llegada_unidad: '',
+      hora_llegada_unidad: ''
+    });
 
-  setTicketEvidencias([]);
-  setOpcionesTicket(null);
-};
+    setTicketEvidencias([]);
+    setOpcionesTicket(null);
+  };
 
   useEffect(() => {
     if (!showModal || !canCreate) return;
@@ -670,22 +670,22 @@ export function SoporteTicketsDashboard({ permisos, usuario, onCrearEntregaPulse
         Solicitud de descarga de videos
       </button>
     );
-    const cerrarModalPulsera = () => {
-  setShowPulseraModal(false);
-  setPulseraEvidencia(null);
-  setShowDniSuggestions(false);
+  const cerrarModalPulsera = () => {
+    setShowPulseraModal(false);
+    setPulseraEvidencia(null);
+    setShowDniSuggestions(false);
 
-  setPulseraForm({
-    solicitante_persona_id: '',
-    cliente_operacion_id: '',
-    receptor_persona_id: '',
-    persona_pulsera: '',
-    dni_persona_pulsera: '',
-    motivo_renovacion: '',
-    fecha_llegada_personal: '',
-    hora_llegada_personal: ''
-  });
-};
+    setPulseraForm({
+      solicitante_persona_id: '',
+      cliente_operacion_id: '',
+      receptor_persona_id: '',
+      persona_pulsera: '',
+      dni_persona_pulsera: '',
+      motivo_renovacion: '',
+      fecha_llegada_personal: '',
+      hora_llegada_personal: ''
+    });
+  };
   const renderPulseraModal = () => canCreatePulsera && showPulseraModal && (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(16,27,51,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200, backdropFilter: 'blur(5px)', padding: '1rem', animation: 'fadeIn 0.2s ease-out' }}>
 
@@ -1291,8 +1291,8 @@ export function SoporteTicketsDashboard({ permisos, usuario, onCrearEntregaPulse
           <button
             onClick={() => setActiveTab('PULSERAS')}
             className={`ui-tab-button ${activeTab === 'PULSERAS'
-                ? 'active'
-                : ''
+              ? 'active'
+              : ''
               }`}
           >
             <UiIcon name="clipboard" />
@@ -1312,7 +1312,7 @@ export function SoporteTicketsDashboard({ permisos, usuario, onCrearEntregaPulse
           style={{
             display:
               activeTab === 'VIDEOS' ||
-              activeTab === 'PULSERAS'
+                activeTab === 'PULSERAS'
                 ? 'none'
                 : 'grid',
             gap: '1rem'
@@ -1359,10 +1359,10 @@ export function SoporteTicketsDashboard({ permisos, usuario, onCrearEntregaPulse
 
         {activeTab === 'PULSERAS' && (
           <ReportesPulserasPanel
-  onCrearEntrega={onCrearEntregaPulsera}
-  canManage={false}
-  isAdmin={isAdmin}
-/>
+            onCrearEntrega={onCrearEntregaPulsera}
+            canManage={false}
+            isAdmin={isAdmin}
+          />
         )}
 
         {/* Modal Nuevo Ticket */}
@@ -1566,22 +1566,20 @@ export function SoporteTicketsDashboard({ permisos, usuario, onCrearEntregaPulse
         </button>
         <button
           onClick={() => setActiveTab('PULSERAS')}
-          className={`ui-tab-button ${
-            activeTab === 'PULSERAS'
-              ? 'active'
-              : ''
-          }`}
+          className={`ui-tab-button ${activeTab === 'PULSERAS'
+            ? 'active'
+            : ''
+            }`}
         >
           <UiIcon name="clipboard" />
           Reportes de pulseras
         </button>
         <button
           onClick={() => setActiveTab('VIDEOS')}
-          className={`ui-tab-button ${
-            activeTab === 'VIDEOS'
-              ? 'active'
-              : ''
-          }`}
+          className={`ui-tab-button ${activeTab === 'VIDEOS'
+            ? 'active'
+            : ''
+            }`}
         >
           <UiIcon name="download" />
           Descarga de videos
@@ -1650,7 +1648,21 @@ export function SoporteTicketsDashboard({ permisos, usuario, onCrearEntregaPulse
                   <tr><td colSpan="6" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>No hay tickets resueltos.</td></tr>
                 ) : (
                   getFilteredList(resueltos).map(ticket => (
-                    <tr key={ticket.id} style={{ borderBottom: '1px solid #E5E7EB', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                    <tr
+                      key={ticket.id}
+                      onClick={() => setSelectedTicket(ticket)}
+                      style={{
+                        borderBottom: '1px solid #E5E7EB',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseEnter={event => {
+                        event.currentTarget.style.backgroundColor = '#F9FAFB';
+                      }}
+                      onMouseLeave={event => {
+                        event.currentTarget.style.backgroundColor = 'transparent';
+                      }}
+                    >
                       <td style={{ padding: '1rem', fontWeight: 'bold', color: '#101b33' }}>#{ticket.id}</td>
                       <td style={{ padding: '1rem', color: '#4B5563', fontSize: '0.9rem' }}>{formatDate(ticket.fecha_creacion)}</td>
                       <td style={{ padding: '1rem' }}><span className="badge" style={{ backgroundColor: '#eef3ff', color: '#2458e8', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold', fontSize: '0.75rem' }}>{formatearPlaca(ticket.placa) || ('Sin placa · ' + ticket.operacion)}</span></td>
@@ -1665,15 +1677,23 @@ export function SoporteTicketsDashboard({ permisos, usuario, onCrearEntregaPulse
                       <td style={{ padding: '1rem', textAlign: 'center', display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
                         {getClosingEvidenceUrls(ticket).length > 0 && (
                           <button
-                            onClick={() => window.open(getClosingEvidenceUrls(ticket)[0], '_blank')}
+                            type="button"
+                            onClick={event => {
+                              event.stopPropagation();
+                              setSelectedTicket(ticket);
+                            }}
                             className="ui-icon-button"
-                            title="Ver evidencia"
+                            title="Ver solución y fotos"
+                            aria-label="Ver solución y fotos"
                           >
                             <UiIcon name="eye" />
                           </button>
                         )}
                         {isAdmin && (
-                          <button onClick={() => handleDelete(ticket.id)} className="ui-icon-button ui-icon-button-danger" title="Eliminar permanente">
+                          <button onClick={event => {
+                            event.stopPropagation();
+                            handleDelete(ticket.id);
+                          }} className="ui-icon-button ui-icon-button-danger" title="Eliminar permanente">
                             <UiIcon name="trash" />
                           </button>
                         )}
@@ -1687,19 +1707,19 @@ export function SoporteTicketsDashboard({ permisos, usuario, onCrearEntregaPulse
         </div>
       )}
       {activeTab === 'VIDEOS' && (
-  <SolicitudesDescargaVideosPanel
-    canManage={canManage}
-    isAdmin={isAdmin}
-  />
-)}
+        <SolicitudesDescargaVideosPanel
+          canManage={canManage}
+          isAdmin={isAdmin}
+        />
+      )}
 
-{activeTab === 'PULSERAS' && (
-  <ReportesPulserasPanel
-    onCrearEntrega={onCrearEntregaPulsera}
-    canManage={canManage}
-    isAdmin={isAdmin}
-  />
-)}
+      {activeTab === 'PULSERAS' && (
+        <ReportesPulserasPanel
+          onCrearEntrega={onCrearEntregaPulsera}
+          canManage={canManage}
+          isAdmin={isAdmin}
+        />
+      )}
 
       {/* Modal Nuevo Ticket */}
       {canCreate && showModal && (
@@ -1964,6 +1984,28 @@ export function SoporteTicketsDashboard({ permisos, usuario, onCrearEntregaPulse
                     {selectedTicket.descripcion}
                   </div>
                 </div>
+                {selectedTicket.estado === 'Resuelto' && (
+                  <div style={{ marginTop: '1.5rem' }}>
+                    <strong style={{ color: 'var(--text-primary)' }}>
+                      Solución realizada por TI
+                    </strong>
+
+                    <div
+                      style={{
+                        marginTop: '0.75rem',
+                        padding: '1rem',
+                        borderRadius: '0.5rem',
+                        backgroundColor: 'var(--bg-secondary)',
+                        color: 'var(--text-primary)',
+                        whiteSpace: 'pre-wrap',
+                        overflowWrap: 'anywhere'
+                      }}
+                    >
+                      {selectedTicket.resolucion_desc ||
+                        'Este ticket no tiene una descripción de solución guardada.'}
+                    </div>
+                  </div>
+                )}
 
                 {getClosingEvidenceUrls(selectedTicket).length > 0 && (
                   <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #E5E7EB' }}>
