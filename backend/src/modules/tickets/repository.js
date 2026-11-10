@@ -710,7 +710,7 @@ export const actualizarEstadoTicket = async ({
   const resultado = await pool.query(
     `UPDATE tickets_unidades
      SET
-       estado = $1,
+       estado = $1::text,
        evidencias = COALESCE(evidencias, '[]'::jsonb) || $2::jsonb,
        resolucion_desc = CASE
          WHEN $1::text = 'Resuelto' THEN $6::text
