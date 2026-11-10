@@ -63,6 +63,7 @@ const formatearHora = valor =>
 export function ReportesPulserasPanel({
   canManage,
   onCrearEntrega,
+  onVerEntrega,
   isAdmin = false
 
 }) {
@@ -420,7 +421,23 @@ export function ReportesPulserasPanel({
                     </td>
                     <td style={{ padding: '0.85rem', minWidth: '180px', maxWidth: '300px', overflowWrap: 'anywhere' }}>
                       {reporte.aplica_cambio === true ? (
-                        <span>Cambio de pulsera · Entrega #{reporte.entrega_ti_id}</span>
+                        <div>
+                          <span>
+                            Cambio de pulsera · Entrega #{reporte.entrega_ti_id}
+                          </span>
+
+                          {reporte.entrega_ti_id && onVerEntrega && (
+                            <button
+                              type="button"
+                              className="ui-button ui-button-secondary"
+                              style={{ display: 'flex', marginTop: '0.5rem' }}
+                              onClick={() => onVerEntrega(reporte.entrega_ti_id)}
+                            >
+                              <UiIcon name="eye" />
+                              Ver entrega TI
+                            </button>
+                          )}
+                        </div>
                       ) : reporte.aplica_cambio === false ? (
                         <>
                           <div style={{ whiteSpace: 'pre-wrap' }}>{reporte.motivo_sin_cambio}</div>

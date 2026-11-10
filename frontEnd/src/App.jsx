@@ -167,6 +167,7 @@ function App() {
   });// 'public', 'login', 'admin'
   const [activeTab, setActiveTabState] = useState("resumen");
   const [entregaDesdePulsera, setEntregaDesdePulsera] = useState(null);
+  const [entregaParaVer, setEntregaParaVer] = useState(null);
   const [vistaTickets, setVistaTickets] = useState('KANBAN');
   const [isAppLoading, setIsAppLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -180,7 +181,7 @@ function App() {
   const [mantenimientoNavKey, setMantenimientoNavKey] = useState(0);
   const [activeMenu, setActiveMenu] = useState(null); // Para menú colapsable de maestros
   const [isDarkMode, setIsDarkMode] = useState(() => {
-    const saved = localStorage.getItem("jdcali_theme");
+    const saved = localStorage.getItem("ERPHSE_theme");
     return saved === "dark";
   });
   const [user, setUser] = useState(() => {
@@ -200,10 +201,10 @@ function App() {
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add("dark");
-      localStorage.setItem("jdcali_theme", "dark");
+      localStorage.setItem("ERPHSE_theme", "dark");
     } else {
       document.documentElement.classList.remove("dark");
-      localStorage.setItem("jdcali_theme", "light");
+      localStorage.setItem("ERPHSE_theme", "light");
     }
   }, [isDarkMode]);
 
@@ -214,6 +215,7 @@ function App() {
   }, [activeTab]);
 
   const abrirEntregaPulsera = reporte => {
+    setEntregaParaVer(null);
     setEntregaDesdePulsera(reporte);
     setActiveTabState('entregas');
   };
@@ -225,9 +227,12 @@ function App() {
 
   const setActiveTab = (tab) => {
     if (tab !== 'entregas') setEntregaDesdePulsera(null);
+
+    setEntregaParaVer(null);
+
     setActiveTabState(tab);
     localStorage.setItem("jdcali_tab", tab);
-    setIsSidebarOpen(false); // Cierra en móviles al navegar
+    setIsSidebarOpen(false);
   };
 
   const abrirMantenimiento = (vista) => {
@@ -248,18 +253,18 @@ function App() {
     user?.rol?.toLowerCase() === "administrador";
   const isSupervisor = String(user?.rol || '').trim().toLowerCase() === 'supervisor';
   const hasAccess = (modulo) => {
-  if (isAdmin) return true;
+    if (isAdmin) return true;
 
-  if (isSupervisor && modulo === 'flota') {
-    return false;
-  }
+    if (isSupervisor && modulo === 'flota') {
+      return false;
+    }
 
-  if (isSupervisor && modulo === 'mantenimiento') {
-    return true;
-  }
+    if (isSupervisor && modulo === 'mantenimiento') {
+      return true;
+    }
 
-  return user?.permisos?.[modulo]?.ver === true;
-};
+    return user?.permisos?.[modulo]?.ver === true;
+  };
 
   const tiModules = [
     "resumen",
@@ -377,8 +382,8 @@ function App() {
     <button
       type="button"
       className={`erp-nav-item erp-nav-subitem ${activeTab === "mantenimiento" && (isSupervisor ? "historial" : mantenimientoVista) === vista
-          ? "active"
-          : ""
+        ? "active"
+        : ""
         }`}
       onClick={() => abrirMantenimiento(vista)}
     >
@@ -545,21 +550,21 @@ function App() {
                       {isMantenimientoOpen && !isDesktopCollapsed && (
                         <div className="erp-nav-submenu erp-nav-submenu-level-2">
                           {!isSupervisor && <>
-                          <MantenimientoSubItem
-                            vista="programa"
-                            icon="clipboard"
-                            label="Programa"
-                          />
-                          <MantenimientoSubItem
-                            vista="unidades"
-                            icon="truck"
-                            label="Unidades"
-                          />
-                          <MantenimientoSubItem
-                            vista="ots"
-                            icon="wrench"
-                            label="Órdenes de trabajo"
-                          />
+                            <MantenimientoSubItem
+                              vista="programa"
+                              icon="clipboard"
+                              label="Programa"
+                            />
+                            <MantenimientoSubItem
+                              vista="unidades"
+                              icon="truck"
+                              label="Unidades"
+                            />
+                            <MantenimientoSubItem
+                              vista="ots"
+                              icon="wrench"
+                              label="Órdenes de trabajo"
+                            />
                           </>}
                           <MantenimientoSubItem
                             vista="historial"
@@ -676,14 +681,16 @@ function App() {
           )}
           {activeTab === "dashboard" && hasAccess("dashboard") && (
             <FlotasDashboard
-  usuario={user}
-  permisos={isAdmin ? { editar: true } : user?.permisos?.dashboard}
-/>
+              usuario={user}
+              permisos={isAdmin ? { editar: true } : user?.permisos?.dashboard}
+            />
           )}
           {activeTab === "entregas" && hasAccess("entregas") && (
             <EntregasTIDashboard
               vista="Entrega"
               reportePulseraInicial={entregaDesdePulsera}
+              entregaIdInicial={entregaParaVer}
+              onEntregaInicialAbierta={() => setEntregaParaVer(null)}
               onFinalizarEntregaPulsera={volverAReportesPulseras}
               onCancelarEntregaPulsera={volverAReportesPulseras}
               permisos={
@@ -706,6 +713,16 @@ function App() {
           {activeTab === "tickets" && hasAccess("tickets") && (
             <SoporteTicketsDashboard
               onCrearEntregaPulsera={abrirEntregaPulsera}
+              onVerEntregaPulsera={
+                hasAccess('entregas')
+                  ? (id) => {
+                    setEntregaDesdePulsera(null);
+                    setEntregaParaVer(id);
+                    setActiveTabState('entregas');
+                    setIsSidebarOpen(false);
+                  }
+                  : undefined
+              }
               vistaInicial={vistaTickets}
               permisos={
                 isAdmin

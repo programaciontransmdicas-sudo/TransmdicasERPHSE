@@ -14,7 +14,13 @@ import {
   ReportesPulserasPanel
 } from './ReportesPulserasPanel';
 
-export function SoporteTicketsDashboard({ permisos, usuario, onCrearEntregaPulsera, vistaInicial = 'KANBAN' }) {
+export function SoporteTicketsDashboard({
+  permisos,
+  usuario,
+  onCrearEntregaPulsera,
+  onVerEntregaPulsera,
+  vistaInicial = 'KANBAN'
+}) {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -1360,6 +1366,7 @@ export function SoporteTicketsDashboard({ permisos, usuario, onCrearEntregaPulse
         {activeTab === 'PULSERAS' && (
           <ReportesPulserasPanel
             onCrearEntrega={onCrearEntregaPulsera}
+            onVerEntrega={onVerEntregaPulsera}
             canManage={false}
             isAdmin={isAdmin}
           />
@@ -1716,6 +1723,7 @@ export function SoporteTicketsDashboard({ permisos, usuario, onCrearEntregaPulse
       {activeTab === 'PULSERAS' && (
         <ReportesPulserasPanel
           onCrearEntrega={onCrearEntregaPulsera}
+          onVerEntrega={onVerEntregaPulsera}
           canManage={canManage}
           isAdmin={isAdmin}
         />

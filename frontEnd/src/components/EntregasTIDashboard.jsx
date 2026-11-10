@@ -8,7 +8,16 @@ import { AdjuntosSeleccionados } from './AdjuntosSeleccionados';
 // Configurar el worker de PDF.js
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
-export function EntregasTIDashboard({ vista, permisos, usuario, reportePulseraInicial = null, onFinalizarEntregaPulsera, onCancelarEntregaPulsera }) {
+export function EntregasTIDashboard({
+  vista,
+  permisos,
+  usuario,
+  reportePulseraInicial = null,
+  entregaIdInicial = null,
+  onEntregaInicialAbierta,
+  onFinalizarEntregaPulsera,
+  onCancelarEntregaPulsera
+}) {
   const rolUsuario = String(usuario?.rol || '').toLowerCase();
   const isAdmin = rolUsuario === 'admin' || rolUsuario === 'administrador';
   const canEdit = permisos?.editar === true;
@@ -89,14 +98,42 @@ export function EntregasTIDashboard({ vista, permisos, usuario, reportePulseraIn
       onCancelarEntregaPulsera?.();
     }
   };
-
   const loadData = async () => {
     try {
       setLoading(true);
+
       const data = await api.getEntregas();
       setEntregas(data || []);
+
+      if (entregaIdInicial != null) {
+        const entrega = (data || []).find(item =>
+          String(item.id) === String(entregaIdInicial) &&
+          (
+            !item.tipo_movimiento ||
+            item.tipo_movimiento === 'Entrega'
+          )
+        );
+
+        if (entrega) {
+          setSelectedEntrega(entrega);
+          setShowDetailModal(true);
+        } else {
+          toast.error(
+            'No se encontró la entrega o no tienes acceso a ella.'
+          );
+        }
+
+        onEntregaInicialAbierta?.();
+      }
     } catch (error) {
       console.error(error);
+
+      if (entregaIdInicial != null) {
+        toast.error(
+          'No se pudo cargar la entrega. Inténtalo nuevamente.'
+        );
+        onEntregaInicialAbierta?.();
+      }
     } finally {
       setLoading(false);
     }
@@ -187,7 +224,14 @@ export function EntregasTIDashboard({ vista, permisos, usuario, reportePulseraIn
   });
 
   const filteredData = sortedData.filter(e => {
-    const matchesSearch = (e.nombre || '').toLowerCase().replace(/-/g, '').includes(searchTerm.toLowerCase().replace(/-/g, '')) ||
+    const matchesSearch =
+      (
+        searchTerm.trim() !== '' &&
+        String(e.id) === searchTerm.trim().replace(/^#/, '')
+      ) ||
+      (e.nombre || '').toLowerCase().replace(/-/g, '').includes(
+        searchTerm.toLowerCase().replace(/-/g, '')
+      ) ||
       (e.dni || '').includes(searchTerm) ||
       (e.equipo_tipo || '').toLowerCase().replace(/-/g, '').includes(searchTerm.toLowerCase().replace(/-/g, ''));
     const itemTipo = e.tipo_movimiento || 'Entrega';
@@ -500,16 +544,22 @@ export function EntregasTIDashboard({ vista, permisos, usuario, reportePulseraIn
           <span className="ui-search-icon"><UiIcon name="search" /></span>
           <input
             type="text"
-            placeholder="Buscar por DNI, Nombre o Tipo..."
+            placeholder="Buscar por número, DNI, nombre o tipo..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
             style={{ width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-color)', color: 'var(--text-primary)' }}
           />
         </div>
         <div style={{ flex: '0 1 200px' }}>
           <select
             value={categoriaFilter}
-            onChange={(e) => setCategoriaFilter(e.target.value)}
+            onChange={(e) => {
+              setCategoriaFilter(e.target.value);
+              setCurrentPage(1);
+            }}
             style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-color)', color: 'var(--text-primary)' }}
           >
             <option value="">Todas las categorías</option>
@@ -532,6 +582,15 @@ export function EntregasTIDashboard({ vista, permisos, usuario, reportePulseraIn
             <table>
               <thead>
                 <tr>
+                  <th
+                    onClick={() => requestSort('id')}
+                    style={{ cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    N.º{' '}
+                    {sortConfig.key === 'id'
+                      ? (sortConfig.direction === 'asc' ? '↑' : '↓')
+                      : ''}
+                  </th>
                   <th onClick={() => requestSort('fecha')} style={{ cursor: 'pointer', userSelect: 'none' }}>Fecha {sortConfig.key === 'fecha' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
                   <th onClick={() => requestSort('nombre')} style={{ cursor: 'pointer', userSelect: 'none' }}>Receptor {sortConfig.key === 'nombre' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
                   <th onClick={() => requestSort('operacion')} style={{ cursor: 'pointer', userSelect: 'none' }}>Cliente / Operación {sortConfig.key === 'operacion' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
@@ -556,6 +615,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario, reportePulseraIn
 
                   return currentItems.map(item => (
                     <tr key={item.id}>
+                      <td>#{item.id}</td>
                       <td>
                         {item.fecha ? (() => {
                           const [year, month, day] = item.fecha.split('T')[0].split('-');
@@ -678,7 +738,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario, reportePulseraIn
           <div className="responsive-modal" style={{ backgroundColor: 'var(--card-bg)', padding: '2rem', borderRadius: '0.5rem', width: '500px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto', position: 'relative', boxShadow: '0 20px 50px -14px rgba(16,27,51,0.18)' }}>
             <button onClick={() => setShowDetailModal(false)} className="ui-icon-button" style={{ position: 'absolute', top: '1rem', right: '1rem' }} aria-label="Cerrar"><UiIcon name="close" /></button>
 
-            <h3 style={{ marginTop: 0, borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem', marginBottom: '1rem', fontSize: '1.25rem', color: 'var(--text-primary)' }}>Detalles de Entrega TI</h3>
+            <h3 style={{ marginTop: 0, borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem', marginBottom: '1rem', fontSize: '1.25rem', color: 'var(--text-primary)' }}>Detalles de {vista === 'Devolución' ? 'Devolución' : 'Entrega'} TI #{selectedEntrega.id}</h3>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.9rem', color: '#374151' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
