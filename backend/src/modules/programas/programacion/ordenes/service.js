@@ -726,7 +726,14 @@ export const resolverResultado = (
 
     return { estado, nivel_completado: nivel };
   }
-
+  // Hay avance, pero todavía no existe un nivel completo.
+// Por eso no se debe adelantar el ciclo de mantenimiento.
+if (nivel === null) {
+  return {
+    estado,
+    nivel_completado: null
+  };
+}
   // PARCIAL. Las familias anuales quedan fuera: solo tienen M3.
   if (ANUALES.includes(detalle.tipo_equipo)) {
     throw new ValidationError(

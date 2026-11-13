@@ -602,6 +602,7 @@ function MantenimientoCompleto({
   onVistaChange
 }) {
   const [vehiculos, setVehiculos] = useState([]);
+  const [indicadoresMantenimiento, setIndicadoresMantenimiento] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const [vista, setVista] = useState(vistaInicial);
@@ -669,9 +670,11 @@ function MantenimientoCompleto({
       try {
         setLoading(true);
 
-        const response = await api.getVehiculos(1, 10000);
+        const [response, indicadores] = await Promise.all([
+          api.getVehiculos(1, 10000), api.getIndicadoresMantenimiento()
+        ]);
         const lista = response?.data || [];
-
+        setIndicadoresMantenimiento(indicadores);
         setVehiculos(lista);
 
         // F2.1: aqui se sembraban OT-DEMO-001 y OT-DEMO-002 sobre las dos primeras placas
@@ -711,35 +714,9 @@ function MantenimientoCompleto({
     });
   }, [vehiculos, busqueda, operacion]);
 
-  const estadoUnidad = (vehiculo, index) => {
-    const cerradas = ordenes
-      .filter(
-        orden =>
-          orden.placa === vehiculo.placa &&
-          orden.estado === 'CERRADA'
-      )
-      .sort(
-        (a, b) =>
-          new Date(`${b.fecha}T12:00:00`) -
-          new Date(`${a.fecha}T12:00:00`)
-      );
-
-    if (!cerradas.length) {
-      return index % 4 === 0 ? 'VENCIDO' : 'SIN FECHA BASE';
-    }
-
-    const ultima = new Date(`${cerradas[0].fecha}T12:00:00`);
-    const proxima = new Date(ultima);
-    proxima.setDate(proxima.getDate() + 15);
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-
-    if (proxima < hoy) return 'VENCIDO';
-
-    const sieteDias = new Date(hoy);
-    sieteDias.setDate(sieteDias.getDate() + 7);
-
-    return proxima <= sieteDias ? 'POR VENCER' : 'AL DÍA';
+  const estadoUnidad = vehiculo => {
+    const estado = indicadoresMantenimiento?.unidades.find(u => u.placa === vehiculo.placa)?.estado;
+    return ({ 'VENCIDA': 'VENCIDO', 'POR VENCER': 'POR VENCER', 'AL DÍA': 'AL DÍA' })[estado] || 'SIN INFORMACIÓN';
   };
 
   // F2.1: aqui vivia crearOrdenLocal(), que generaba `OT-DEMO-NNN` en estado React y
@@ -1279,6 +1256,10 @@ function MantenimientoCompleto({
               {estados.filter(x => x === 'AL DÍA').length}
             </strong>
           </div>
+          <div className="m2-kpi">
+            <span>Sin información</span>
+            <strong>{estados.filter(x => x === 'SIN INFORMACIÓN').length}</strong>
+          </div>
         </div>
 
         {renderFiltros()}
@@ -1291,28 +1272,16 @@ function MantenimientoCompleto({
                 <th>Operación</th>
                 <th>Cliente</th>
                 <th>Estado</th>
-                <th>Aparatos</th>
+                <th>Equipos en última OT</th>
                 <th>Última intervención</th>
-                <th>Nivel</th>
+                <th>Resultado de visita</th>
                 <th></th>
               </tr>
             </thead>
 
             <tbody>
               {filtrados.map((vehiculo, index) => {
-                const cerradas = ordenes
-                  .filter(
-                    orden =>
-                      orden.placa === vehiculo.placa &&
-                      orden.estado === 'CERRADA'
-                  )
-                  .sort(
-                    (a, b) =>
-                      new Date(`${b.fecha}T12:00:00`) -
-                      new Date(`${a.fecha}T12:00:00`)
-                  );
-
-                const ultima = cerradas[0];
+                const ultima = indicadoresMantenimiento?.ordenes.find(o => o.placa === vehiculo.placa);
                 const estado = estadoUnidad(vehiculo, index);
 
                 return (
@@ -1351,19 +1320,7 @@ function MantenimientoCompleto({
                     </td>
 
                     <td>
-                      <span className="m2-dots">
-                        {EQUIPOS.map((equipo, equipoIndex) => (
-                          <i
-                            key={equipo.key}
-                            className={`m2-dot ${equipoIndex === 4 &&
-                              index % 3 !== 0
-                              ? 'off'
-                              : 'ok'
-                              }`}
-                            title={equipo.nombre}
-                          />
-                        ))}
-                      </span>
+                      {ultima?.equipos?.length ? ultima.equipos.map(e => e.tipo).join(', ') : 'Sin información'}
                     </td>
 
                     <td>
@@ -1377,15 +1334,7 @@ function MantenimientoCompleto({
                     </td>
 
                     <td>
-                      {ultima ? (
-                        <span
-                          className={`m2-level l${ultima.nivel}`}
-                        >
-                          M{ultima.nivel}
-                        </span>
-                      ) : (
-                        '—'
-                      )}
+                      {ultima?.resultado || '—'}
                     </td>
 
                     <td className="m2-unit-arrow">
@@ -1418,630 +1367,25 @@ function MantenimientoCompleto({
   // detalles son los equipos previstos de esa visita.
 
   const renderFichaUnidad = () => {
-    const vehiculo = vehiculos.find(
-      item => item.placa === unidadFichaPlaca
-    );
-
-    if (!vehiculo) {
-      return (
-        <div className="m2-card">
-          <div className="m2-empty">
-            Unidad no encontrada.
-          </div>
-        </div>
-      );
-    }
-
-    const inventario = inventarioMock(vehiculo.placa);
-    const cerradas = ordenesCerradasUnidad(
-      vehiculo.placa
-    );
-
-    const eventos = cerradas.filter(orden => {
-      if (fichaFiltro === 'todo') return true;
-
-      if (fichaFiltro === 'hall') {
-        return Object.values(
-          orden.detalle || {}
-        ).some(
-          detalle =>
-            detalle?.resultado &&
-            detalle.resultado !== 'CONFORME'
-        );
-      }
-
-      return Boolean(
-        orden.detalle?.[fichaFiltro]
-      );
-    });
-
-    const atenciones = [];
-
-    EQUIPOS.forEach(equipo => {
-      if (!inventario[equipo.key]) return;
-
-      const ciclo = datosCicloEquipo(
-        vehiculo.placa,
-        equipo.key
-      );
-
-      if (ciclo.estado === 'VENCIDO') {
-        atenciones.push({
-          tipo: 'vencido',
-          equipo,
-          ciclo
-        });
-      }
-
-      const ultimoRegistro = ultimoRegistroEquipo(
-        vehiculo.placa,
-        equipo.key
-      );
-
-      const detalle =
-        ultimoRegistro?.detalle?.[equipo.key];
-
-      if (
-        detalle &&
-        ['OBSERVADO', 'NO CONFORME', 'NO REVISADO'].includes(
-          detalle.resultado
-        )
-      ) {
-        atenciones.push({
-          tipo: 'hallazgo',
-          equipo,
-          orden: ultimoRegistro,
-          detalle
-        });
-      }
-    });
-
-    return (
-      <>
-        <div className="m2-ficha-actions">
-          <button
-            className="m2-btn"
-            onClick={() => {
-              setVista('unidades');
-              setUnidadFichaPlaca(null);
-            }}
-          >
-            ← Volver
-          </button>
-
-        </div>
-
-        <div
-          className="m2-card"
-          style={{ marginBottom: '14px' }}
-        >
-          <div className="m2-ficha-head">
-            <div>
-              <div className="m2-ficha-plate">
-                {formatearPlaca(vehiculo.placa)}
-              </div>
-
-              <div className="m2-small">
-                {vehiculo.tipo_vehiculo || '—'} ·{' '}
-                {vehiculo.marca_tracto || '—'}{' '}
-                {vehiculo.modelo_tracto || ''} ·{' '}
-                {vehiculo.anio_fabricacion || '—'} ·{' '}
-                {vehiculo.operacion || 'Sin operación'} ·{' '}
-                {vehiculo.cliente || 'Sin cliente'}
-              </div>
-            </div>
-
-            <div className="m2-ficha-state">
-              <span>Estado de la unidad</span>
-
-              <span
-                className={estadoClase(
-                  estadoUnidadFicha(vehiculo.placa)
-                )}
-              >
-                {estadoUnidadFicha(formatearPlaca(vehiculo.placa))}
-              </span>
-            </div>
-          </div>
-
-          <div className="m2-ficha-tiles">
-            {EQUIPOS.map(equipo => {
-              const instalado = inventario[equipo.key];
-              const ciclo = datosCicloEquipo(
-                vehiculo.placa,
-                equipo.key
-              );
-
-              const ultimo = ultimoRegistroEquipo(
-                vehiculo.placa,
-                equipo.key
-              );
-
-              const registros = cerradas.filter(
-                orden => orden.detalle?.[equipo.key]
-              ).length;
-
-              if (!instalado) {
-                return (
-                  <div
-                    className="m2-ficha-tile off"
-                    key={equipo.key}
-                  >
-                    <strong>{equipo.nombre}</strong>
-                    <span>No instalado</span>
-                    <small>No se exige</small>
-                  </div>
-                );
-              }
-
-              let siguiente = 'Sin fecha base';
-
-              if (ciclo.proxima) {
-                siguiente =
-                  ciclo.diasRestantes < 0
-                    ? `Vencido hace ${Math.abs(
-                      ciclo.diasRestantes
-                    )} días`
-                    : ciclo.diasRestantes === 0
-                      ? 'Vence hoy'
-                      : `Vence en ${ciclo.diasRestantes} días`;
-              }
-
-              return (
-                <button
-                  type="button"
-                  className={`m2-ficha-tile ${fichaFiltro === equipo.key
-                    ? 'selected'
-                    : ''
-                    }`}
-                  key={equipo.key}
-                  onClick={() =>
-                    setFichaFiltro(prev =>
-                      prev === equipo.key
-                        ? 'todo'
-                        : equipo.key
-                    )
-                  }
-                >
-                  <strong>{equipo.nombre}</strong>
-
-                  <span
-                    className={estadoClase(ciclo.estado)}
-                  >
-                    {ciclo.estado}
-                  </span>
-
-                  <small>
-                    Último{' '}
-                    {ultimo
-                      ? formatDMY(ultimo.fecha)
-                      : '—'}
-                  </small>
-
-                  <small
-                    className={
-                      ciclo.estado === 'VENCIDO'
-                        ? 'danger'
-                        : ''
-                    }
-                  >
-                    {siguiente}
-                  </small>
-
-                  <small>
-                    {registros
-                      ? `${registros} registro${registros > 1 ? 's' : ''
-                      }`
-                      : 'Sin registros'}
-                  </small>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="m2-ficha-columns">
-          <div>
-            <div className="m2-ficha-filterbar">
-              <span>Mostrar</span>
-
-              <button
-                type="button"
-                className={`m2-filter-chip ${fichaFiltro === 'todo'
-                  ? 'selected'
-                  : ''
-                  }`}
-                onClick={() =>
-                  setFichaFiltro('todo')
-                }
-              >
-                Todo
-              </button>
-
-              <button
-                type="button"
-                className={`m2-filter-chip ${fichaFiltro === 'hall'
-                  ? 'selected'
-                  : ''
-                  }`}
-                onClick={() =>
-                  setFichaFiltro('hall')
-                }
-              >
-                Solo hallazgos
-              </button>
-
-              {!['todo', 'hall'].includes(
-                fichaFiltro
-              ) && (
-                  <button
-                    type="button"
-                    className="m2-filter-chip selected"
-                    onClick={() =>
-                      setFichaFiltro('todo')
-                    }
-                  >
-                    {
-                      EQUIPOS.find(
-                        item =>
-                          item.key === fichaFiltro
-                      )?.nombre
-                    }{' '}
-                    ×
-                  </button>
-                )}
-            </div>
-
-            <div className="m2-card">
-              <div className="m2-card-title">
-                Qué se le hizo a la unidad
-              </div>
-
-              <div className="m2-timeline-wrap">
-                {eventos.length === 0 ? (
-                  <div className="m2-empty">
-                    {cerradas.length === 0
-                      ? 'Esta unidad todavía no tiene mantenimientos cerrados.'
-                      : 'No hay registros para este filtro.'}
-                  </div>
-                ) : (
-                  <div className="m2-timeline">
-                    {eventos.map(orden => {
-                      const detalles = Object.entries(
-                        orden.detalle || {}
-                      );
-
-                      const hallazgos =
-                        detalles.filter(
-                          ([, detalle]) =>
-                            detalle.resultado !==
-                            'CONFORME'
-                        );
-
-                      const conformes =
-                        detalles.filter(
-                          ([, detalle]) =>
-                            detalle.resultado ===
-                            'CONFORME'
-                        );
-
-                      const abierto = Boolean(
-                        fichaAbiertos[orden.id]
-                      );
-
-                      return (
-                        <div
-                          className="m2-timeline-item"
-                          key={orden.id}
-                        >
-                          <i
-                            className={`m2-timeline-dot ${hallazgos.length
-                              ? 'warn'
-                              : 'ok'
-                              }`}
-                          />
-
-                          <div className="m2-timeline-head">
-                            <strong>
-                              {formatDMY(orden.fecha)}
-                            </strong>
-
-                            <span
-                              className={`m2-level l${orden.nivel}`}
-                            >
-                              M{orden.nivel}
-                            </span>
-
-                            <span className="m2-small">
-                              {orden.tecnico || '—'} ·{' '}
-                              {orden.minutos || 0} min ·{' '}
-                              <span className="m2-mono">
-                                {orden.id}
-                              </span>
-                            </span>
-
-                            <button
-                              type="button"
-                              className="m2-btn m2-btn-small"
-                              onClick={() =>
-                                setFichaAbiertos(prev => ({
-                                  ...prev,
-                                  [orden.id]:
-                                    !prev[orden.id]
-                                }))
-                              }
-                            >
-                              {abierto
-                                ? 'Ocultar detalle'
-                                : 'Ver detalle'}
-                            </button>
-                          </div>
-
-                          <div className="m2-timeline-results">
-                            {hallazgos.map(
-                              ([key, detalle]) => {
-                                const equipo =
-                                  EQUIPOS.find(
-                                    item =>
-                                      item.key === key
-                                  );
-
-                                return (
-                                  <div
-                                    className={`m2-finding ${detalle.resultado ===
-                                      'NO CONFORME'
-                                      ? 'bad'
-                                      : 'warn'
-                                      }`}
-                                    key={key}
-                                  >
-                                    <span>
-                                      {detalle.resultado ===
-                                        'NO CONFORME'
-                                        ? '!'
-                                        : '~'}
-                                    </span>
-
-                                    <div>
-                                      <strong>
-                                        {equipo?.nombre ||
-                                          key}
-                                      </strong>{' '}
-                                      <small>
-                                        {detalle.resultado.toLowerCase()}
-                                      </small>
-
-                                      {detalle.observacion && (
-                                        <div className="m2-small">
-                                          {
-                                            detalle.observacion
-                                          }
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                              }
-                            )}
-
-                            {conformes.length > 0 && (
-                              <div className="m2-finding ok">
-                                <span>✓</span>
-
-                                <div>
-                                  {conformes.length}{' '}
-                                  aparato
-                                  {conformes.length > 1
-                                    ? 's'
-                                    : ''}{' '}
-                                  conforme
-                                  {conformes.length > 1
-                                    ? 's'
-                                    : ''}
-                                  :{' '}
-                                  {conformes
-                                    .map(
-                                      ([key]) =>
-                                        EQUIPOS.find(
-                                          item =>
-                                            item.key === key
-                                        )?.nombre
-                                    )
-                                    .filter(Boolean)
-                                    .join(', ')}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {abierto && (
-                            <div className="m2-ficha-detail">
-                              {EQUIPOS.map(equipo => {
-                                const detalle =
-                                  orden.detalle?.[
-                                  equipo.key
-                                  ];
-
-                                if (!detalle) {
-                                  return (
-                                    <div
-                                      className="m2-ficha-detail-row muted"
-                                      key={equipo.key}
-                                    >
-                                      <span>
-                                        {equipo.nombre}
-                                      </span>
-
-                                      <span>
-                                        {inventario[
-                                          equipo.key
-                                        ]
-                                          ? 'Sin registro'
-                                          : 'No instalado'}
-                                      </span>
-                                    </div>
-                                  );
-                                }
-
-                                return (
-                                  <div
-                                    key={equipo.key}
-                                  >
-                                    <div className="m2-ficha-detail-row">
-                                      <span>
-                                        {equipo.nombre}
-                                      </span>
-
-                                      <span>
-                                        <span
-                                          className={estadoClase(
-                                            detalle.resultado
-                                          )}
-                                        >
-                                          {
-                                            detalle.resultado
-                                          }
-                                        </span>
-
-                                        {detalle.evidencias >
-                                          0 && (
-                                            <span className="m2-evidence">
-                                              {
-                                                detalle.evidencias
-                                              }{' '}
-                                              foto
-                                              {detalle.evidencias >
-                                                1
-                                                ? 's'
-                                                : ''}
-                                            </span>
-                                          )}
-                                      </span>
-                                    </div>
-
-                                    {detalle.observacion && (
-                                      <div className="m2-ficha-observation">
-                                        {
-                                          detalle.observacion
-                                        }
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
-
-                              <div className="m2-ficha-detail-row muted">
-                                <span>
-                                  Actividades del nivel
-                                </span>
-
-                                <span>
-                                  M{orden.nivel}{' '}
-                                  acumulativo
-                                </span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <div className="m2-card m2-ficha-sticky">
-              <div className="m2-card-title">
-                Requiere atención
-              </div>
-
-              <div className="m2-attention-wrap">
-                {atenciones.length === 0 ? (
-                  <div className="m2-muted">
-                    Nada abierto. Con los datos temporales
-                    disponibles, la unidad no muestra
-                    mantenimientos vencidos ni hallazgos
-                    pendientes.
-                  </div>
-                ) : (
-                  atenciones.map(
-                    (item, index) => {
-                      if (item.tipo === 'vencido') {
-                        return (
-                          <div
-                            className="m2-attention overdue"
-                            key={`v-${item.equipo.key}-${index}`}
-                          >
-                            <strong>
-                              {item.equipo.nombre}
-                            </strong>
-
-                            <div>
-                              Mantenimiento vencido
-                            </div>
-
-                            <small>
-                              {item.ciclo.proxima
-                                ? `Venció el ${formatDMY(
-                                  item.ciclo.proxima
-                                )}`
-                                : 'Sin fecha calculada'}
-                            </small>
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <div
-                          className="m2-attention"
-                          key={`h-${item.equipo.key}-${index}`}
-                        >
-                          <div>
-                            <span
-                              className={estadoClase(
-                                item.detalle.resultado
-                              )}
-                            >
-                              {
-                                item.detalle.resultado
-                              }
-                            </span>
-                          </div>
-
-                          <strong>
-                            {item.equipo.nombre}
-                          </strong>
-
-                          <div>
-                            {item.detalle.observacion ||
-                              'Hallazgo registrado en mantenimiento'}
-                          </div>
-
-                          <small>
-                            {item.orden.id} ·{' '}
-                            {formatDMY(
-                              item.orden.fecha
-                            )}
-                          </small>
-                        </div>
-                      );
-                    }
-                  )
-                )}
-
-                <div className="m2-attention-note">
-                  Consulta los tickets correctivos en Tickets de Soporte.
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </>
-    );
+    const unidad = indicadoresMantenimiento?.unidades.find(u => u.placa === unidadFichaPlaca);
+    const ordenesUnidad = indicadoresMantenimiento?.ordenes.filter(o => o.placa === unidadFichaPlaca) || [];
+    if (!unidad) return <div className="m2-card"><div className="m2-empty">Unidad no encontrada.</div></div>;
+    return <>
+      <div className="m2-ficha-actions"><button className="m2-btn" onClick={() => { setVista('unidades'); setUnidadFichaPlaca(null); }}>← Volver</button></div>
+      <div className="m2-card" style={{ padding: 20 }}>
+        <h3>{formatearPlaca(unidad.placa)}</h3>
+        <p>{unidad.cliente || 'Sin cliente'} · {unidad.operacion || 'Sin operación'}</p>
+        <p>Estado del programa: <strong>{unidad.estado}</strong>{unidad.plazo ? ` · plazo ${formatDMY(unidad.plazo)}` : ''}</p>
+        <h4>Órdenes cerradas</h4>
+        {!ordenesUnidad.length ? <p>No hay órdenes cerradas registradas.</p> : ordenesUnidad.map(orden =>
+          <div key={orden.id} className="m2-card" style={{ padding: 12, marginTop: 8 }}>
+            <strong>OT #{orden.id}</strong> · {orden.fecha ? formatDMY(orden.fecha) : 'Sin fecha'} · {orden.resultado}
+            <p>{orden.equipos.map(e => `${e.tipo}: ${e.estado}`).join(' · ') || 'Sin resultados de equipos'}</p>
+            <button type="button" className="m2-btn" onClick={() => { setDestinoOt({ programacionId: orden.programacion_id, otId: orden.id }); setVista('ots'); }}>Ver orden</button>
+          </div>)}
+      </div>
+    </>;
   };
-
 
   const renderDetalleOrden = () => {
     const orden = ordenes.find(
@@ -4634,6 +3978,7 @@ function MantenimientoCompleto({
           el modelo: una OT nace de una programación concreta. */}
       {vista === 'ots' && (
         <OrdenesTiPr01
+          soloConsulta={String(usuario?.rol || '').trim().toLowerCase() === 'gerencia'}
           destino={destinoOt}
           onDestinoConsumido={() => setDestinoOt(null)}
           onVolverAPrograma={() => setVista('programa')}

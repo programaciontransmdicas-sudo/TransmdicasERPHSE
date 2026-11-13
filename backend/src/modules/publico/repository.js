@@ -48,24 +48,16 @@ export const obtenerTickerInspecciones =
     return result.rows;
   };
 
-export const obtenerTrabajosTI =
-  async () => {
-    const result = await pool.query(
-      `SELECT
-         id,
-         tipo_solicitud,
-         placa
-       FROM incidentes_soporte
-       WHERE estado IN (
-         'Resuelto',
-         'Concluido'
-       )
-       ORDER BY id DESC
-       LIMIT 3`
-    );
-
-    return result.rows;
-  };
+export const obtenerTrabajosTI = async ({ accesoTotal = true, clienteOperacionIds = [] } = {}) => {
+  const result = await pool.query(`
+    SELECT s.id, s.tipo_solicitud, s.placa
+    FROM incidentes_soporte s
+    LEFT JOIN vehiculos v ON v.placa = s.placa
+    WHERE s.estado IN ('Resuelto', 'Concluido')
+      AND ($1::boolean OR v.cliente_operacion_id = ANY($2::integer[]))
+    ORDER BY s.id DESC LIMIT 3`, [Boolean(accesoTotal), clienteOperacionIds]);
+  return result.rows;
+};
 
 // ==========================================
 // CONSULTA POR PLACA

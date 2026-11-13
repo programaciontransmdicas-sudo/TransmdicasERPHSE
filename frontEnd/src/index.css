@@ -1027,8 +1027,8 @@ body::before {
 
 /* Logotipo oficial. El recorte solo oculta el margen blanco de la imagen fuente. */
 .erp-logo-crop, .company-logo-crop, .erp-mobile-logo { position: relative; overflow: hidden; display: block; background: #fff; }
-.erp-logo-crop { width: 46px; height: 38px; flex: 0 0 46px; border-radius: 7px; }
-.erp-logo-crop img { position: absolute; width: 70px; height: auto; left: -12px; top: -11px; }
+.erp-logo-crop { width: 52px; height: 43px; flex: 0 0 52px; border-radius: 7px; }
+.erp-logo-crop img { position: absolute; width: 79px; height: auto; left: -13.5px; top: -12.5px; }
 .company-logo-crop { width: 118px; height: 42px; flex: 0 0 118px; border-radius: 7px; }
 .company-logo-crop img { position: absolute; width: 120px; height: auto; left: -1px; top: -31px; }
 .erp-mobile-logo { width: 44px; height: 30px; flex: 0 0 44px; border-radius: 6px; }
@@ -1275,3 +1275,6 @@ body::before {
 [data-theme="dark"] .inspection-kpi-icon.is-green { background: rgba(14,159,110,.2); }
 [data-theme="dark"] .inspection-kpi-icon.is-red { background: rgba(220,59,42,.2); }
 [data-theme="dark"] .inspection-kpi-icon.is-amber { background: rgba(219,139,11,.2); }
+
+.dashboard-quincena-filter { display: flex; align-items: center; gap: .4rem; color: var(--text-primary); font-size: .8rem; font-weight: 600; }
+.dashboard-quincena-filter select { max-width: 220px; padding: .55rem; color: var(--text-primary); background: var(--card-bg); border: 1px solid var(--border-color); border-radius: .5rem; }

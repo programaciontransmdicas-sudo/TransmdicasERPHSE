@@ -1,3 +1,6 @@
+import { leerProgramaExcel } from '../programas/programacion/excel/repository.js';
+import { filtrosExcel, prepararReporte, finQuincena } from '../programas/programacion/excel/service.js';
+import { generarExcelPrograma } from '../../reports/excelProgramaTiPr01.js';
 import {
   pool
 } from '../../config/database.js';
@@ -12,20 +15,16 @@ import {
 
 import {
   generateMasterReport
-} from '../../reports/ExcelMaster.js';
+} from '../../reports/ExcelMasterMantenimiento.js';
 
 import {
-  obtenerOperacionesReportes,
-  obtenerDatosMantenimientoReporte
+  obtenerOperacionesReportes
 } from './repository.js';
 
 import {
   validarParametrosMaster
 } from './service.js';
 
-import {
-  generarExcelMantenimiento
-} from '../../reports/excelMantenimiento.js';
 
 // ==========================================
 // OPERACIONES
@@ -116,14 +115,13 @@ export const generarMaster =
             404
             ? 404
             : error.status ===
-              400
-              ? 400
+              400 || error.status === 409
+              ? error.status
               : 500
         )
         .json({
           error:
-            error.status === 404 ||
-              error.status === 400
+            [400, 404, 409].includes(error.status)
               ? error.message
               : 'Error interno generando reporte'
         });
@@ -137,13 +135,14 @@ export const generarMaster =
 export const generarMantenimientoExcel =
   async (req, res) => {
     try {
-      const datos =
-        await obtenerDatosMantenimientoReporte();
-
-      const workbook =
-        await generarExcelMantenimiento(
-          datos
-        );
+      const activos = await pool.query("SELECT id FROM programas_mantenimiento WHERE codigo='TI-PR-01' AND estado='ACTIVO'");
+      if (activos.rows.length !== 1) return res.status(409).json({ error:'Se requiere un programa TI-PR-01 activo.' });
+      const datos = await leerProgramaExcel(activos.rows[0].id, pool);
+      const ultimas = datos.visitas.filter(v => v.estado !== 'CANCELADO' && v.quincena_efectiva)
+        .map(v => finQuincena(v.quincena_efectiva)).sort();
+      const fin = ultimas.at(-1);
+      if (fin && fin > datos.version.periodo_fin) datos.version = { ...datos.version, periodo_fin: fin };
+      const workbook = await generarExcelPrograma(prepararReporte(datos, filtrosExcel({})));
 
       res.setHeader(
         'Content-Type',

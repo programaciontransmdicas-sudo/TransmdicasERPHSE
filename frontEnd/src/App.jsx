@@ -603,7 +603,7 @@ function App() {
           {hasAccess("reportes") && (
             <NavItem tab="reportes" icon="chart" label="Reportes Gerenciales" />
           )}
-          {isAdmin && (
+          {hasAccess("usuarios") && (
             <NavItem tab="usuarios" icon="shield" label="Gestión de Usuarios" />
           )}
         </nav>
@@ -748,7 +748,7 @@ function App() {
               permisos={isAdmin ? { editar: true } : user?.permisos?.reportes}
             />
           )}
-          {activeTab === "usuarios" && isAdmin && <GestionUsuariosDashboard />}
+          {activeTab === "usuarios" && hasAccess("usuarios") && <GestionUsuariosDashboard puedeEditar={isAdmin} />}
         </main>
       </div>
       <AsistenteERPHSE

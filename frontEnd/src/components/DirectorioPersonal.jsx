@@ -7,6 +7,7 @@ export function DirectorioPersonal({ permisos, usuario }) {
   const rol = String(usuario?.rol || '').toLowerCase();
   const isAdmin = ['admin', 'administrador'].includes(rol);
   const isTI = rol === 'ti';
+  const puedeVerInactivos = isAdmin || rol === 'gerencia';
   const [opciones, setOpciones] = useState([]);
   const [cargandoCatalogo, setCargandoCatalogo] = useState(false);
   const [errorCatalogo, setErrorCatalogo] = useState('');
@@ -52,7 +53,7 @@ export function DirectorioPersonal({ permisos, usuario }) {
         api.getPersonal(),
         api.getEntregas().catch(() => []) // Fallback in case IT module is empty or fails
       ]);
-      setPersonal((Array.isArray(dataPersonal) ? dataPersonal : []).filter(p => isAdmin || String(p.estado).toLowerCase() === 'activo'));
+      setPersonal((Array.isArray(dataPersonal) ? dataPersonal : []).filter(p => puedeVerInactivos || String(p.estado).toLowerCase() === 'activo'));
       setInventarioTI(Array.isArray(dataEntregas) ? dataEntregas : []);
     } catch (error) {
       console.error(error);

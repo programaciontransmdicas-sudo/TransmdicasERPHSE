@@ -1,5 +1,5 @@
 import 'dotenv/config';
-
+import { iniciarGeneracionAutomatica } from './src/modules/programas/programacion/generacionAutomatica.js';
 import app from './src/app.js';
 
 import {
@@ -43,6 +43,7 @@ const iniciarServidor = async () => {
       console.log(
         `Servidor backend corriendo en el puerto ${port}`
       );
+      iniciarGeneracionAutomatica();
     }
   );
 

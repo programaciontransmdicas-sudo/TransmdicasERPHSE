@@ -18,7 +18,7 @@ export function AuditoriaOrden(props) {
   } catch {
     // Una sesión local inválida nunca habilita la auditoría.
   }
-  if (rol !== 'admin' && rol !== 'administrador') return null;
+  if (!['admin', 'administrador', 'gerencia'].includes(rol)) return null;
   return <PanelAuditoriaOrden {...props} />;
 }
 

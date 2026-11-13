@@ -83,7 +83,7 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import {
   CODIGO, CUTOVER, REGULARES, ANUALES, ESTADO_INICIAL,
-  idx, cargarInsumos, generar, excepciones, materializar, codigoDeSalida,
+  idx,quin, cargarInsumos, generar, excepciones, materializar, codigoDeSalida,  auditarCadencia
 } from './generador-nucleo.mjs';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
@@ -395,14 +395,45 @@ try {
     `${mienten.length} visitas donde el maximo global habria mentido`);
   chk(g.visitas.every(v => idx(v.quincena) >= idx(CUTOVER)),
     'cutover · ninguna visita anterior al cutover', CUTOVER);
-  const refMap = new Map(ins.refs.map(r => [`${r.unidad}|${r.familia}|${r.nivel}`, r]));
-  const fuera = g.bruto.filter(o => {
-    const r = refMap.get(`${o.unidad}|${o.familia}|${o.nivel}`);
-    const d = o.i - idx(typeof r.q_ref === 'string' ? r.q_ref.slice(0, 10) : r.q_ref.toISOString().slice(0, 10));
-    return d <= 0 || d % r.frec !== 0;
-  });
-  chk(fuera.length === 0, 'paso 1 · toda obligacion es referencia + k x frecuencia, k>=1',
-    `${g.bruto.length} verificadas`);
+  const fuera = auditarCadencia(
+  ins,
+  g.bruto
+);
+  console.log('\nDETALLE DE OBLIGACIONES FUERA DE LA VALIDACIÓN');
+
+console.log(
+  'Cantidad total:',
+  fuera.length
+);
+
+console.log(
+  'Por tipo de fase:',
+  fuera.reduce((resultado, obligacion) => {
+    const fase = obligacion.fase || 'SIN_FASE';
+
+    resultado[fase] =
+      (resultado[fase] || 0) + 1;
+
+    return resultado;
+  }, {})
+);
+
+console.table(
+  fuera.slice(0, 20).map(obligacion => ({
+    unidad_id: obligacion.unidad,
+    placa:
+      ins.uni.get(obligacion.unidad)?.placa || '—',
+    equipo: obligacion.familia,
+    nivel: obligacion.nivel,
+    quincena: quin(obligacion.i),
+    fase: obligacion.fase
+  }))
+);
+  chk(
+  fuera.length === 0,
+  'paso 1 · cadencias originales y planes ajustados validos',
+  `${g.bruto.length} verificadas`
+);
   const m2Ancla = ins.refs.filter(r => r.nivel === 'M2' && REGULARES.includes(r.familia)
     && r.fase === 'ANCLA').length;
   chk(m2Ancla > 0, 'paso 1 · M2/M3 regulares se rigen por su ancla, no por el ultimo M1',

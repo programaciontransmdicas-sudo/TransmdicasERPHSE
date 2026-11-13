@@ -525,17 +525,17 @@ export function EntregasTIDashboard({
             </>
           )}
           {canEdit &&
-  (vista === 'Devolución' || rolUsuario.trim() !== 'supervisor') && (
-    <button
-      onClick={openCreateModal}
-      className="ui-button ui-button-primary"
-    >
-      <UiIcon name="plus" />
-      {vista === 'Devolución'
-        ? 'Registrar Devolución'
-        : 'Nueva Entrega'}
-    </button>
-  )}
+            (vista === 'Devolución' || rolUsuario.trim() !== 'supervisor') && (
+              <button
+                onClick={openCreateModal}
+                className="ui-button ui-button-primary"
+              >
+                <UiIcon name="plus" />
+                {vista === 'Devolución'
+                  ? 'Registrar Devolución'
+                  : 'Nueva Entrega'}
+              </button>
+            )}
         </div>
       </div>
 
@@ -567,6 +567,7 @@ export function EntregasTIDashboard({
             <option value="LAPTOP">Laptops</option>
             <option value="CELULAR">Celulares</option>
             <option value="TABLET">Tablets</option>
+            <option value="COOLER">Cooler</option>
             <option value="MONITOR">Monitores</option>
           </select>
         </div>
@@ -958,7 +959,7 @@ export function EntregasTIDashboard({
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem' }}>Tipo Equipo</label>
-                    <select name="equipo_tipo" value={formData.equipo_tipo} onChange={handleFormChange} required style={{ width: '100%', padding: '0.5rem' }}><option value="">Seleccione un equipo</option><option value="PULSERA">PULSERA</option><option value="LAPTOP">LAPTOP</option><option value="CARGADOR">CARGADOR</option><option value="MOUSE">MOUSE</option><option value="CORREA DE PULSERA">CORREA DE PULSERA</option><option value="MONITOR">MONITOR</option><option value="TABLET">TABLET</option><option value="MOUSE INALAMBRICO">MOUSE INALAMBRICO</option></select>
+                    <select name="equipo_tipo" value={formData.equipo_tipo} onChange={handleFormChange} required style={{ width: '100%', padding: '0.5rem' }}><option value="">Seleccione un equipo</option><option value="PULSERA">PULSERA</option><option value="LAPTOP">LAPTOP</option><option value="CARGADOR">CARGADOR</option><option value="MOUSE">MOUSE</option><option value="CORREA DE PULSERA">CORREA DE PULSERA</option><option value="MONITOR">MONITOR</option><option value="TABLET">TABLET</option><option value="MOUSE INALAMBRICO">MOUSE INALAMBRICO</option><option value="COOLER">COOLER</option></select>
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem' }}>Condición</label>

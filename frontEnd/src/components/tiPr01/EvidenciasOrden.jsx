@@ -144,30 +144,53 @@ export function EvidenciasOrden({ programaId, orden, bloqueado }) {
     }
   };
   const seleccionar = (apartado, event) => {
-    const archivo = event.target.files?.[0];
+    const archivos = Array.from(event.target.files || []);
     event.target.value = '';
-    if (!archivo) return;
-    if (!/\.(jpe?g|png|webp)$/i.test(archivo.name) || (archivo.type && !['image/jpeg', 'image/png', 'image/webp'].includes(archivo.type))) {
+    if (!archivos.length) return;
+    if (archivos.length + (pendientes[apartado.detalle_id]?.length || 0) + apartado.activas > apartado.maximo) {
+      setError({ message: `El máximo para este equipo es ${apartado.maximo} fotografías.` }); return;
+    }
+    if (archivos.some(archivo => !/\.(jpe?g|png|webp)$/i.test(archivo.name) || (archivo.type && !['image/jpeg', 'image/png', 'image/webp'].includes(archivo.type)))) {
       setError({ code: 'ARCHIVO_NO_IMAGEN' }); return;
     }
-    if (archivo.size > 10 * 1024 * 1024) { setError({ code: 'ARCHIVO_DEMASIADO_GRANDE' }); return; }
-    if (!archivo.size) { setError({ message: 'La imagen está vacía.' }); return; }
+    if (archivos.some(archivo => archivo.size > 10 * 1024 * 1024)) { setError({ code: 'ARCHIVO_DEMASIADO_GRANDE' }); return; }
+    if (archivos.some(archivo => !archivo.size)) { setError({ message: 'La imagen está vacía.' }); return; }
     setError(null);
-    setPendientes(actuales => ({ ...actuales, [apartado.detalle_id]: archivo }));
+    setPendientes(actuales => ({ ...actuales, [apartado.detalle_id]: [...(actuales[apartado.detalle_id] || []), ...archivos] }));
   };
-  const quitarPendiente = detalleId => setPendientes(actuales => {
-    const siguientes = { ...actuales };
-    delete siguientes[detalleId];
-    return siguientes;
-  });
+  const quitarPendiente = (detalleId, index) => setPendientes(actuales => ({ ...actuales,
+    [detalleId]: (actuales[detalleId] || []).filter((_, i) => i !== index) }));
   const subir = async apartado => {
-    const archivo = pendientes[apartado.detalle_id];
+    const archivo = pendientes[apartado.detalle_id]?.[0];
     if (!archivo) return;
     const guardado = await ejecutar(
       () => apiTiPr01.subirEvidenciaOrden(...contexto, apartado.detalle_id, archivo),
       'Fotografía agregada.'
     );
-    if (guardado && montado.current) quitarPendiente(apartado.detalle_id);
+    if (guardado && montado.current) setPendientes(actuales => ({ ...actuales,
+      [apartado.detalle_id]: (actuales[apartado.detalle_id] || []).slice(1) }));
+  };
+  const subirTodas = async () => {
+    if (candado.current || bloqueado) return;
+    candado.current = true; setOcupado(true); setError(null); setMensaje('');
+    let subidas = 0;
+    try {
+      for (const [detalleId, archivos] of Object.entries(pendientes)) {
+        for (const archivo of archivos) {
+          await apiTiPr01.subirEvidenciaOrden(...contexto, detalleId, archivo);
+          subidas++;
+          if (montado.current) setPendientes(actuales => ({ ...actuales,
+            [detalleId]: (actuales[detalleId] || []).filter(a => a !== archivo) }));
+        }
+      }
+      if (montado.current) setMensaje(`${subidas} fotografía(s) agregadas.`);
+    } catch (e) {
+      if (montado.current) setError({ message: `Se subieron ${subidas} fotografía(s). Las restantes siguen pendientes: ${e.message}` });
+    } finally {
+      try { await cargar(); } catch (e) { if (montado.current) setError(e); }
+      candado.current = false;
+      if (montado.current) setOcupado(false);
+    }
   };
   const estadoOrden = galeria?.estado_orden || orden.estado;
   const puedeGestionarAbierta = rol === 'ti' || rol === 'admin';
@@ -176,9 +199,12 @@ export function EvidenciasOrden({ programaId, orden, bloqueado }) {
   return <section className="ti-card ti-evidence-section" aria-label="Evidencias de la orden">
     <h3>Evidencias fotográficas</h3>
     <div className="ti-pad">
-      <p className="ti-smalltxt">Selecciona y revisa la fotografía antes de subirla · JPG, PNG o WEBP · máximo 10 MB.</p>
+      
       <ErrorEvidencia error={error} />
       {mensaje && <p role="status">{mensaje}</p>}
+      {puedeSubir && <button type="button" className="ti-btn primary" disabled={ocupado || bloqueado || !Object.values(pendientes).some(a => a.length)} onClick={subirTodas}>
+        {ocupado ? 'Subiendo…' : 'Subir todas las fotos'}
+      </button>}
       {cargando && <p role="status">Cargando evidencias…</p>}
       {!cargando && error && <button type="button" className="ti-btn" disabled={ocupado} onClick={() => { setError(null); cargar().catch(setError); }}>Actualizar galería</button>}
       {galeria?.apartados?.map(apartado => {
@@ -217,16 +243,16 @@ export function EvidenciasOrden({ programaId, orden, bloqueado }) {
               {puedeSubir && apartado.activas < apartado.maximo && <div className="ti-evidence-upload">
                 <label className="ti-field">
                   <span>Seleccionar fotografía</span>
-                  <input type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                  <input type="file" multiple accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
                     disabled={ocupado || bloqueado} onChange={event => seleccionar(apartado, event)} />
                 </label>
-                <AdjuntosSeleccionados archivos={pendientes[apartado.detalle_id] ? [pendientes[apartado.detalle_id]] : []}
-                  disabled={ocupado || bloqueado} onQuitar={() => quitarPendiente(apartado.detalle_id)} />
-                {pendientes[apartado.detalle_id] && <div className="ti-bar" style={{ marginTop: 10 }}>
+                <AdjuntosSeleccionados archivos={pendientes[apartado.detalle_id] || []}
+                  disabled={ocupado || bloqueado} onQuitar={index => quitarPendiente(apartado.detalle_id, index)} />
+                {pendientes[apartado.detalle_id]?.length > 0 && <div className="ti-bar" style={{ marginTop: 10 }}>
                   <button type="button" className="ti-btn primary" disabled={ocupado || bloqueado} onClick={() => subir(apartado)}>
                     {ocupado ? 'Subiendo…' : 'Subir fotografía'}
                   </button>
-                  <span className="ti-smalltxt">Esta fotografía todavía no se ha guardado.</span>
+                  <span className="ti-smalltxt">Las fotografías seleccionadas todavía no se han guardado.</span>
                 </div>}
               </div>}
               {apartado.activas >= apartado.maximo && <p className="ti-smalltxt">Se alcanzó el máximo de 4 fotografías.</p>}

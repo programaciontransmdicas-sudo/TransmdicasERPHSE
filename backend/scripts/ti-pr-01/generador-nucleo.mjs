@@ -346,6 +346,170 @@ export function continuarAjustadas(ins, desde, hasta) {
 // =====================================================================================
 // EL ALGORITMO
 // =====================================================================================
+export function auditarCadencia(
+  ins,
+  obligaciones
+) {
+  const refs = new Map(
+    ins.refs.map(r => [
+      `${r.unidad}|${r.familia}|${r.nivel}`,
+      r
+    ])
+  );
+
+  const fallas = [];
+
+  const anuales = new Map();
+
+  for (const obligacion of obligaciones) {
+    const clave =
+      `${obligacion.unidad}|` +
+      `${obligacion.familia}|` +
+      `${obligacion.nivel}`;
+
+    const referencia = refs.get(clave);
+
+    if (obligacion.fase !== 'PLAN_AJUSTADO') {
+      if (
+        !referencia ||
+        !referencia.q_ref ||
+        !Number.isInteger(Number(referencia.frec)) ||
+        Number(referencia.frec) <= 0
+      ) {
+        fallas.push({
+          ...obligacion,
+          motivo: 'REFERENCIA_O_FRECUENCIA_INVALIDA'
+        });
+
+        continue;
+      }
+
+      const diferencia =
+        obligacion.i -
+        idx(aISO(referencia.q_ref));
+
+      if (
+        diferencia <= 0 ||
+        diferencia % Number(referencia.frec) !== 0
+      ) {
+        fallas.push({
+          ...obligacion,
+          motivo: 'FUERA_DE_SERIE'
+        });
+      }
+
+      continue;
+    }
+
+    if (!ins.ajustadas?.has(obligacion.unidad)) {
+      fallas.push({
+        ...obligacion,
+        motivo: 'UNIDAD_SIN_PLAN_AJUSTADO'
+      });
+
+      continue;
+    }
+
+    if (ANUALES.includes(obligacion.familia)) {
+      if (!anuales.has(clave)) {
+        anuales.set(clave, []);
+      }
+
+      anuales.get(clave).push(obligacion);
+    }
+  }
+
+  for (const [clave, lista] of anuales) {
+    const referencia = refs.get(clave);
+
+    if (
+      !referencia ||
+      !referencia.q_ref ||
+      !Number.isInteger(Number(referencia.frec)) ||
+      Number(referencia.frec) <= 0
+    ) {
+      lista.forEach(obligacion => {
+        fallas.push({
+          ...obligacion,
+          motivo: 'REFERENCIA_O_FRECUENCIA_INVALIDA'
+        });
+      });
+
+      continue;
+    }
+
+    let ultima =
+      idx(aISO(referencia.q_ref));
+
+    const primera = lista[0];
+
+    const hoy =
+      idx(ins.fechaNegocio);
+
+    const eventosExistentes = [
+      ...(ins.slots?.values() || [])
+    ]
+      .filter(visita =>
+        visita.unidad === primera.unidad &&
+        [
+          'PROYECTADO',
+          'PROGRAMADO',
+          'REPROGRAMADO'
+        ].includes(visita.estado) &&
+        idx(visita.q_efectiva) >= hoy &&
+        visita.nivelDe?.get(primera.familia) ===
+          primera.nivel
+      )
+      .map(visita => ({
+        i: idx(visita.q_efectiva),
+        existente: true
+      }));
+
+    const eventosProyectados = lista.map(
+      obligacion => ({
+        i: obligacion.i,
+        obligacion
+      })
+    );
+
+    const eventos = [
+      ...eventosExistentes,
+      ...eventosProyectados
+    ].sort((a, b) =>
+      a.i - b.i ||
+      Number(b.existente || false) -
+        Number(a.existente || false)
+    );
+
+    for (const evento of eventos) {
+      if (evento.existente) {
+        ultima = Math.max(
+          ultima,
+          evento.i
+        );
+
+        continue;
+      }
+
+      if (
+        evento.i <
+        ultima + Number(referencia.frec)
+      ) {
+        fallas.push({
+          ...evento.obligacion,
+          motivo: 'ANUALIDAD_ANTICIPADA'
+        });
+      }
+
+      ultima = Math.max(
+        ultima,
+        evento.i
+      );
+    }
+  }
+
+  return fallas;
+}
 export function generar(ins, desde, hasta) {
   const iIni = idx(desde), iFin = idx(hasta);
   const materializadas = ins.materializadas ?? new Map();

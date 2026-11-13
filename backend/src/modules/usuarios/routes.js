@@ -3,7 +3,7 @@ import {
 } from 'express';
 
 import {
-  requireAdmin
+  requireAdmin, requirePermiso
 } from '../../middlewares/auth.js';
 
 import {
@@ -18,9 +18,12 @@ import {
 
 const router = Router();
 
-router.use(
-  requireAdmin
-);
+router.use((req, res, next) => {
+  if (req.method === 'GET' || req.method === 'HEAD') {
+    return requirePermiso('usuarios', 'ver')(req, res, next);
+  }
+  return requireAdmin(req, res, next);
+});
 
 // Temporal: se mantiene por compatibilidad.
 router.get(

@@ -48,6 +48,8 @@ export const esUsuarioTi = usuario =>
 // normalizado; aceptar los dos evita que esta funcion dependa de que ese alias siga ahi.
 export const ROL_ADMIN = 'admin';
 
+export const esUsuarioGerencia = usuario => String(usuario?.rol ?? '').trim().toLowerCase() === 'gerencia';
+
 export const esUsuarioAdmin = usuario => {
   const rol = String(usuario?.rol ?? '')
     .trim()

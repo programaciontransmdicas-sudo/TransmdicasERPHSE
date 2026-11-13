@@ -9,7 +9,7 @@ export function Sidebar({ currentTab, setTab }) {
     <aside className="sidebar">
       <div className="sidebar-header">
         <h1>Sistema Integrado TI</h1>
-        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>JDCALi Corporativo</p>
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>ERPHSE Corporativo</p>
       </div>
       <nav>
         {menuItems.map(item => (

@@ -1,3 +1,4 @@
+import { indicadoresMantenimiento } from './mantenimiento.js';
 import {
   Router
 } from 'express';
@@ -14,6 +15,8 @@ router.get(
   '/',
   obtenerStats
 );
+
+router.get('/mantenimiento', indicadoresMantenimiento);
 
 router.get(
   '/charts',

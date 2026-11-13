@@ -1145,14 +1145,14 @@ export function SoporteTicketsDashboard({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {list.length === 0 ? (
             <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.5rem', border: '2px dashed #E5E7EB', height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              Soltar aquí
+              {canManage ? 'Soltar aquí' : 'No hay tickets en esta columna'}
             </div>
           ) : (
             list.map(ticket => (
               <div
                 key={ticket.id}
-                draggable={true}
-                onDragStart={(e) => handleDragStart(e, ticket.id)}
+                draggable={canManage && status !== 'Resuelto'}
+                onDragStart={(e) => { if (canManage && status !== 'Resuelto') handleDragStart(e, ticket.id); }}
                 onDragEnd={handleDragEnd}
                 onClick={() => setSelectedTicket(ticket)}
                 style={{
@@ -1161,7 +1161,7 @@ export function SoporteTicketsDashboard({
                   borderRadius: '0.5rem',
                   padding: '1rem',
                   boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-                  cursor: 'grab',
+                  cursor: canManage ? 'grab' : 'pointer',
                   opacity: draggedTicketId === ticket.id ? 0.4 : 1,
                   transform: draggedTicketId === ticket.id ? 'scale(0.98)' : 'scale(1)',
                   transition: 'transform 0.15s, box-shadow 0.15s, opacity 0.2s'
@@ -1186,6 +1186,11 @@ export function SoporteTicketsDashboard({
                   {ticket.descripcion}
                 </p>
 
+                {ticket.estado === 'Resuelto' && (
+                  <button type="button" className="ui-button ui-button-secondary" onClick={event => { event.stopPropagation(); setSelectedTicket(ticket); }}>
+                    <UiIcon name="eye" /> Ver solución y fotos
+                  </button>
+                )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #F3F4F6', paddingTop: '0.75rem' }}>
                   <div style={{ fontSize: '0.8rem', color: '#4B5563', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: '500' }}>
                     <div className="ui-avatar-mini"><UiIcon name="user" size={12} /></div>
@@ -1217,8 +1222,9 @@ export function SoporteTicketsDashboard({
   };
 
   const isReadOnly = !canManage;
+  const esGerencia = String(usuario?.rol || '').trim().toLowerCase() === 'gerencia';
 
-  if (isReadOnly) {
+  if (isReadOnly && !esGerencia) {
     return (
       <div className="erp-module-page erp-tickets-page" style={{ padding: '2rem', height: '100%', overflowY: 'auto' }}>
         <div
@@ -1612,6 +1618,7 @@ export function SoporteTicketsDashboard({
               <button onClick={() => setStatusFilter('En Proceso')} style={{ padding: '0.5rem 1rem', borderRadius: '2rem', border: 'none', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem', backgroundColor: statusFilter === 'En Proceso' ? '#db8b0b' : '#fff6e4', color: statusFilter === 'En Proceso' ? 'white' : '#db8b0b', transition: 'all 0.2s' }}>
                 <span className="ui-status-dot is-warning" /> En Proceso ({enProceso.length})
               </button>
+              
             </div>
 
             <button onClick={fetchTickets} className="ui-icon-button ui-refresh-button" title="Recargar">
@@ -1682,7 +1689,7 @@ export function SoporteTicketsDashboard({
                         {ticket.resolucion_desc && <div style={{ fontSize: '0.85rem', color: '#0e9f6e', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={ticket.resolucion_desc}><strong>Sol:</strong> {ticket.resolucion_desc}</div>}
                       </td>
                       <td style={{ padding: '1rem', textAlign: 'center', display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
-                        {getClosingEvidenceUrls(ticket).length > 0 && (
+                        {(esGerencia || getClosingEvidenceUrls(ticket).length > 0) && (
                           <button
                             type="button"
                             onClick={event => {

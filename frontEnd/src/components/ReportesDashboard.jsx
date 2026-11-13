@@ -52,7 +52,7 @@ export function ReportesDashboard() {
     }
 
     setLoading(true);
-    const loadingToast = toast.loading('Generando las tres pestañas de la operación seleccionada...');
+    const loadingToast = toast.loading('Generando el reporte de mantenimiento...');
     try {
       const blob = await api.downloadMasterReport(
         fechaInicio,
@@ -91,7 +91,7 @@ export function ReportesDashboard() {
             <span className="report-card-icon"><UiIcon name="chart" size={24} /></span>
             <div>
               <h3>Reporte Master de Auditoría</h3>
-              <p>Genera un único archivo Excel con tres pestañas y fotografías incrustadas.</p>
+              <p>Genera un Excel con programación, OT cerradas y resultados por equipo con sus fotografías disponibles.</p>
             </div>
           </div>
 
@@ -104,7 +104,7 @@ export function ReportesDashboard() {
             {loading ? <span className="ui-spinner" /> : <UiIcon name="download" />}
             {loading ? 'Procesando fotos e información...' : 'Descargar Excel Master'}
           </button>
-          <p className="report-card-footnote">Incluye: TI-PR-01, REGISTRO y la hoja de la operación seleccionada.</p>
+          <p className="report-card-footnote">Incluye: TI-PR-01, órdenes cerradas y resultados por equipo.</p>
         </article>
       </section>
 
@@ -112,7 +112,7 @@ export function ReportesDashboard() {
         <div className="ui-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="export-title" onKeyDown={(event) => { if (event.key === 'Escape' && !loading) setModalOpen(false); }}>
           <div className="ui-modal-card">
             <div className="ui-modal-heading">
-              <div><h3 id="export-title">Exportar por operación</h3><p>Se tomará la última inspección de cada placa dentro del período seleccionado.</p></div>
+              <div><h3 id="export-title">Exportar por operación</h3><p>Se incluirán las órdenes de mantenimiento cerradas dentro del período seleccionado.</p></div>
               <button className="ui-icon-button" type="button" onClick={() => setModalOpen(false)} disabled={loading} aria-label="Cerrar"><UiIcon name="close" /></button>
             </div>
             <div className="report-period-summary"><span>Período seleccionado</span><strong>{fechaInicio} al {fechaFin}</strong></div>

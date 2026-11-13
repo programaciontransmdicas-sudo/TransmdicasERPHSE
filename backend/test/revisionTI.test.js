@@ -72,6 +72,6 @@ test('Ticket con placa formateada usa clave real y guarda llegada y persona', as
 test('Formato conserva ceros y letras y respeta identificadores especiales', () => {
   assert.equal(formatearPlaca('V0J700'), 'V0J-700'); assert.equal(formatearPlaca('VDO898'), 'VDO-898'); assert.equal(formatearPlaca('V0I-941'), 'V0I-941'); assert.equal(formatearPlaca('DEMO'), 'DEMO');
 });
-test('Reprogramación mantiene azul aunque la quincena haya vencido', () => {
-  const v = { estado: 'REPROGRAMADO', quincena_efectiva: '2026-10-01' }; assert.equal(estadoVisual(v, '2026-10-16'), 'REPROGRAMADO'); assert.equal(estadoVisual({ ...v, estado: 'PROGRAMADO' }, '2026-10-16'), 'VENCIDA');
+test('Reprogramación vencida se marca vencida tras la nueva quincena', () => {
+  const v = { estado: 'REPROGRAMADO', quincena_efectiva: '2026-10-01' }; assert.equal(estadoVisual(v, '2026-10-16'), 'VENCIDA'); assert.equal(estadoVisual({ ...v, estado: 'PROGRAMADO' }, '2026-10-16'), 'VENCIDA');
 });

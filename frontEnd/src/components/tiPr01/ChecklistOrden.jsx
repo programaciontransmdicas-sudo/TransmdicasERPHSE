@@ -4,7 +4,7 @@ import { apiTiPr01 } from '../../services/api';
 const ChecklistContext = createContext(null);
 
 
-export function ChecklistOrden({ programaId, orden, bloqueado = false, children }) {
+export function ChecklistOrden({ programaId, orden, bloqueado = false, onResultado, children }) {
   const [datos, setDatos] = useState(null);
   const [ediciones, setEdiciones] = useState({});
   const [error, setError] = useState(null);
@@ -40,6 +40,7 @@ export function ChecklistOrden({ programaId, orden, bloqueado = false, children 
     try {
       const resultado = await apiTiPr01.editarActividadChecklist(programaId, orden.programacion_id, orden.id,
         actividad.id, cuerpo);
+      if (resultado.detalle) onResultado?.(resultado.detalle);
       setDatos(prev => ({ ...prev, apartados: prev.apartados.map(p => ({ ...p,
         actividades: p.actividades.map(a => a.id === actividad.id ? { ...a, ...resultado.actividad } : a)
       })) }));

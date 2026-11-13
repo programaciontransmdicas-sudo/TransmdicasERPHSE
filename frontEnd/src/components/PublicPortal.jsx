@@ -294,11 +294,11 @@ export function PublicPortal({ onAdminClick, openSupportOnLoad = false }) {
             <button className="no-print" onClick={() => setShowResultModal(false)} style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(0,0,0,0.2)', color: 'white', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>X</button>
 
             {/* Cabecera del Carnet */}
-            <div style={{ backgroundColor: result.estado_general === 'APROBADO' ? '#0e9f6e' : '#dc3b2a', color: 'white', padding: '2rem 1.5rem 1.5rem 1.5rem', textAlign: 'center', position: 'relative' }}>
+            <div style={{ backgroundColor: result.estado_general === 'AL DÍA' ? '#0e9f6e' : '#dc3b2a', color: 'white', padding: '2rem 1.5rem 1.5rem 1.5rem', textAlign: 'center', position: 'relative' }}>
               <div style={{ position: 'absolute', top: '1rem', left: '1rem', fontSize: '0.7rem', opacity: 0.8, letterSpacing: '2px', fontFamily: 'monospace' }}>ERPHSE</div>
               <h3 style={{ fontSize: '2.5rem', margin: 0, fontWeight: '900', letterSpacing: '2px', textShadow: '0 2px 5px rgba(0,0,0,0.3)' }}>{formatearPlaca(result.placa)}</h3>
               <p style={{ margin: '0.5rem 0 0 0', fontSize: '1.25rem', fontWeight: '800', textTransform: 'uppercase', background: 'rgba(0,0,0,0.2)', display: 'inline-block', padding: '0.2rem 1rem', borderRadius: '2rem' }}>
-                ESTADO: {result.estado_general}
+                PROGRAMA: {result.estado_general}
               </p>
             </div>
 
@@ -306,7 +306,7 @@ export function PublicPortal({ onAdminClick, openSupportOnLoad = false }) {
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <div>
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Última Inspección</p>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Último mantenimiento</p>
                   <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>{result.fecha} {result.hora}</p>
                 </div>
                 {/* QR Mockup */}
@@ -328,15 +328,15 @@ export function PublicPortal({ onAdminClick, openSupportOnLoad = false }) {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginBottom: '1.5rem' }}>
                 <div style={{ textAlign: 'center', padding: '0.75rem 0.25rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
                   <p style={{ margin: '0 0 0.25rem 0', fontWeight: 'bold', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Cámaras</p>
-                  <span style={{ color: result.camaras === 'OK' || result.camaras === 'NO APLICA' || result.camaras === 'N/A' ? '#0e9f6e' : '#dc3b2a', fontWeight: 'bold', fontSize: '0.9rem' }}>{result.camaras}</span>
+                  <span style={{ color: result.camaras === 'COMPLETADO' ? '#0e9f6e' : ['NO_APLICA', 'Sin registro'].includes(result.camaras) ? '#64748b' : '#a8650a', fontWeight: 'bold', fontSize: '0.9rem' }}>{result.camaras}</span>
                 </div>
                 <div style={{ textAlign: 'center', padding: '0.75rem 0.25rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
                   <p style={{ margin: '0 0 0.25rem 0', fontWeight: 'bold', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Radio</p>
-                  <span style={{ color: result.radio === 'OK' || result.radio === 'NO APLICA' || result.radio === 'N/A' ? '#0e9f6e' : '#dc3b2a', fontWeight: 'bold', fontSize: '0.9rem' }}>{result.radio}</span>
+                  <span style={{ color: result.radio === 'COMPLETADO' ? '#0e9f6e' : ['NO_APLICA', 'Sin registro'].includes(result.radio) ? '#64748b' : '#a8650a', fontWeight: 'bold', fontSize: '0.9rem' }}>{result.radio}</span>
                 </div>
                 <div style={{ textAlign: 'center', padding: '0.75rem 0.25rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
                   <p style={{ margin: '0 0 0.25rem 0', fontWeight: 'bold', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Tablet</p>
-                  <span style={{ color: result.tablet === 'OK' || result.tablet === 'NO APLICA' || result.tablet === 'N/A' ? '#0e9f6e' : '#dc3b2a', fontWeight: 'bold', fontSize: '0.9rem' }}>{result.tablet}</span>
+                  <span style={{ color: result.tablet === 'COMPLETADO' ? '#0e9f6e' : ['NO_APLICA', 'Sin registro'].includes(result.tablet) ? '#64748b' : '#a8650a', fontWeight: 'bold', fontSize: '0.9rem' }}>{result.tablet}</span>
                 </div>
               </div>
 
@@ -347,7 +347,7 @@ export function PublicPortal({ onAdminClick, openSupportOnLoad = false }) {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     {result.timeline.map((item, idx) => (
                       <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#334155' }}>
-                        <span style={{ color: item.estado === 'APROBADO' ? '#0e9f6e' : '#ef4444', fontSize: '1rem' }}>{item.estado === 'APROBADO' ? '🟢' : '🔴'}</span>
+                        <span style={{ color: item.estado === 'EJECUTADO' ? '#0e9f6e' : '#ef4444', fontSize: '1rem' }}>{item.estado === 'EJECUTADO' ? '🟢' : '🔴'}</span>
                         <strong>{item.fecha}</strong> ({item.hora}) - {item.estado}
                       </div>
                     ))}
@@ -373,7 +373,7 @@ export function PublicPortal({ onAdminClick, openSupportOnLoad = false }) {
               )}
 
               {/* Evidencias Fotográficas */}
-              <h4 className="no-print" style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--text-primary)', margin: '0 0 0.5rem 0', textTransform: 'uppercase' }}>Evidencia Fotográfica</h4>
+              <h4 className="no-print" style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--text-primary)', margin: '0 0 0.5rem 0', textTransform: 'uppercase' }}>Evidencias históricas de inspección</h4>
               <div className="no-print" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '0.5rem', marginBottom: '1.5rem' }}>
                 {result.fotos.map((foto, idx) => (
                   foto.url ? (

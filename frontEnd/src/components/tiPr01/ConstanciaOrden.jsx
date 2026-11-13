@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cargarConstancia, codigoOrden, fechaConstancia } from './constanciaOt';
 import { ETIQUETA_EQUIPO, etiquetaEstado, quincenaDe } from './dominio';
+import logoTransmdicas from '../../assets/transmdicas-logo.png';
 
 function Documento({ datos, programa, onCerrar }) {
   const { orden, visita, evidencias, consultada } = datos;
@@ -47,10 +48,27 @@ function Documento({ datos, programa, onCerrar }) {
           <button type="button" onClick={() => window.print()}>Imprimir</button>
           <button type="button" onClick={onCerrar}>Cerrar</button>
         </div>
-        <header>
-          <div><strong>TRANSMDICAS S.R.L.</strong><p>{programa.codigo || 'Programa de mantenimiento'}</p></div>
-          <div className="ti-constancia-codigo"><strong>{codigo}</strong><p>{etiquetaEstado(orden.estado)}</p></div>
-        </header>
+        <header style={{ alignItems: 'center' }}>
+  <img
+    src={logoTransmdicas}
+    alt="Transmdicas"
+    style={{
+      width: 160,
+      maxWidth: '25%',
+      height: 'auto',
+      objectFit: 'contain'
+    }}
+  />
+
+  <div>
+    <strong>TRANSMDICAS S.R.L.</strong>
+  </div>
+
+  <div className="ti-constancia-codigo">
+    <strong>{codigo}</strong>
+    <p>{etiquetaEstado(orden.estado)}</p>
+  </div>
+</header>
         <h1 id="constancia-titulo">{cerrada ? 'Constancia de orden de trabajo' : 'Reporte de orden de trabajo'}</h1>
         {!cerrada && <p className="ti-constancia-aviso">
           {anulada ? 'ORDEN ANULADA · Este documento no acredita la ejecución del mantenimiento.' : 'ORDEN ABIERTA · Reporte provisional de resultados registrados; no acredita el cierre.'}

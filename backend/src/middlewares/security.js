@@ -12,7 +12,7 @@ const PERMISSION_ROUTES = [
   },
   {
     pattern: /^\/api\/usuarios(?:\/|$)/,
-    adminOnly: true
+    modules: ['usuarios']
   },
   {
     pattern: /^\/api\/personal(?:\/|$)/,
@@ -92,6 +92,13 @@ export const authorizeRequest = (
 ) => {
   if (isPublicRoute(req)) {
     return next();
+  }
+
+  // Gerencia es exclusivamente de consulta, incluso en rutas que admiten cualquier
+  // usuario autenticado. OPTIONS queda disponible para el preflight del navegador.
+  const esGerencia = String(req.user?.rol || '').trim().toLowerCase() === 'gerencia';
+  if (esGerencia && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    return res.status(403).json({ error: 'Gerencia solo tiene acceso de consulta' });
   }
 
   const rule = PERMISSION_ROUTES.find(

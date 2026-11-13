@@ -18,3 +18,8 @@ test('Solo Cámaras admite el campo',()=>{
  assert.doesNotThrow(()=>validarEnlaceVideoDelEquipo({tipo_equipo},['observaciones']));
  }
 });
+test('Cámaras permite guardar resultado sin enviar enlace de video', () => {
+ const p = prepararActualizacionDetalle({ estado:'COMPLETADO', nivel_completado:'M1' });
+ assert.equal(p.data.enlace_video, undefined);
+ assert.doesNotThrow(() => validarEnlaceVideoDelEquipo({ tipo_equipo:'CAMARAS' }, p.campos));
+});

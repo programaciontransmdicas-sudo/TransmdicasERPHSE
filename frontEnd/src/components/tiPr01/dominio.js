@@ -135,7 +135,7 @@ export const estadoVisual = (visita, fechaNegocio) => {
   const q = quincenaDe(efectiva);
   const cerrada = Boolean(q && fechaNegocio && q.fin < fechaNegocio);
 
-  if (cerrada && estado !== 'REPROGRAMADO') return 'VENCIDA';
+  if (cerrada) return 'VENCIDA';
   if ((visita.ordenes_trabajo?.abiertas ?? 0) > 0) return 'EN_PROCESO';
 
   return estado;
@@ -404,6 +404,16 @@ export const exigenciaDeResultado = (detalle, estado) => {
   }
 
   if (estado === 'PARCIAL') {
+    if (!detalle?.nivel_completado) {
+  return {
+    nivelEsperado: null,
+    nivelFijo: true,
+
+    texto:
+      'Hay actividades realizadas y otras pendientes; ' +
+      'no se registra un nivel completo.'
+  };
+}
     if (anual) {
       return {
         nivelEsperado: null,

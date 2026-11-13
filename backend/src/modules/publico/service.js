@@ -106,7 +106,8 @@ export const normalizarPlacaPublica =
     const placa =
       String(valor || '')
         .trim()
-        .toUpperCase();
+        .toUpperCase()
+        .replace(/[\s-]+/g, '');
 
     if (
       !placa ||

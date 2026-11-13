@@ -1,11 +1,11 @@
-import { esUsuarioAdmin, esUsuarioTi, normalizarId, ValidationError } from '../../comun.js';
+import { esUsuarioAdmin, esUsuarioTi, esUsuarioGerencia, normalizarId, ValidationError } from '../../comun.js';
 import { leerProgramaExcel } from './repository.js';
 import { filtrosExcel, prepararReporte } from './service.js';
 import { generarExcelPrograma } from '../../../../reports/excelProgramaTiPr01.js';
 
 export async function descargarProgramaExcel(req, res) {
   try {
-    if (!esUsuarioAdmin(req.user) && !esUsuarioTi(req.user)) {
+    if (!esUsuarioAdmin(req.user) && !esUsuarioTi(req.user) && !esUsuarioGerencia(req.user)) {
       throw new ValidationError('No tiene permiso para descargar el programa.', 403);
     }
     const programaId = normalizarId('programaId', req.params.programaId);

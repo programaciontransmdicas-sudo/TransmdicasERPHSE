@@ -11,7 +11,8 @@ const MODULES = [
   { id: 'devoluciones', label: 'Devoluciones TI' },
   { id: 'mantenimiento', label: 'Mantenimiento Técnico' },
   { id: 'reportes', label: 'Reportes Gerenciales' },
-  { id: 'usuarios', label: 'Gestión de Usuarios' }
+  { id: 'usuarios', label: 'Gestión de Usuarios' },
+  { id: 'seguridad', label: 'Seguridad Patrimonial' }
 ];
 
 const TEMPLATES = {
@@ -29,6 +30,11 @@ const TEMPLATES = {
       crear: true,
       gestionar: true
     }
+  },
+
+  gerencia: {
+    ...Object.fromEntries(MODULES.map(modulo => [modulo.id, { ver: true, editar: false }])),
+    tickets: { ver: true, editar: false, crear: false, gestionar: false }
   },
 
   supervisor: {
@@ -86,7 +92,7 @@ const generarUsernamePreview = nombreCompleto => {
 
   return `${primerNombre.charAt(0)}${primerApellido}`;
 };
-export function GestionUsuariosDashboard() {
+export function GestionUsuariosDashboard({ puedeEditar = false }) {
   const [usuarios, setUsuarios] = useState([]);
   const [personal, setPersonal] = useState([]);
   const [clientesOperaciones, setClientesOperaciones] = useState([]);
@@ -355,12 +361,12 @@ export function GestionUsuariosDashboard() {
     <div className="erp-module-page erp-users-page" style={{ color: 'var(--text-primary)', maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <h1 style={{ margin: 0, fontSize: '1.8rem' }}>Gestión de Usuarios (RBAC)</h1>
-        <button
+        {puedeEditar && <button
           onClick={() => handleOpenModal()}
           style={{ background: '#2458e8', color: 'white', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer' }}
         >
           + Crear Usuario
-        </button>
+        </button>}
       </div>
 
       <div style={{ background: 'var(--card-bg)', borderRadius: '1rem', overflow: 'hidden', boxShadow: '0 1px 3px rgba(16,27,51,0.05)' }}>
@@ -372,7 +378,7 @@ export function GestionUsuariosDashboard() {
               <th style={{ padding: '1rem', textAlign: 'center' }}>Alcance</th>
               <th style={{ padding: '1rem', textAlign: 'center' }}>Módulos Asignados</th>
               <th style={{ padding: '1rem', textAlign: 'center' }}>Estado</th>
-              <th style={{ padding: '1rem', textAlign: 'center' }}>Acciones</th>
+              {puedeEditar && <th style={{ padding: '1rem', textAlign: 'center' }}>Acciones</th>}
             </tr>
           </thead>
           <tbody>
@@ -414,7 +420,7 @@ export function GestionUsuariosDashboard() {
                     <td style={{ padding: '1rem', textAlign: 'center' }}>
                       <span style={{ color: u.estado === 'activo' ? '#0e9f6e' : '#dc3b2a' }}>●</span> {u.estado}
                     </td>
-                    <td style={{ padding: '1rem', textAlign: 'center' }}>
+                    {puedeEditar && <td style={{ padding: '1rem', textAlign: 'center' }}>
 
                       <button onClick={() => handleOpenModal(u)} style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', padding: '0.5rem', borderRadius: '0.25rem', cursor: 'pointer', marginRight: '0.5rem' }}>✏️</button>
 
@@ -433,7 +439,7 @@ export function GestionUsuariosDashboard() {
                       >
                         {u.estado === 'activo' ? 'Desactivar' : 'Activar'}
                       </button>
-                    </td>
+                    </td>}
                   </tr>
                 )
               });
@@ -627,6 +633,7 @@ export function GestionUsuariosDashboard() {
                         <option value="admin">Administrador</option>
                         <option value="supervisor">Supervisor</option>
                         <option value="ti">TI</option>
+                        <option value="gerencia">Gerencia (solo consulta)</option>
                       </select>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>

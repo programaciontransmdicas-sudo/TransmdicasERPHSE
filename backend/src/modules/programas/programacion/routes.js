@@ -15,6 +15,7 @@ import {
 
 import ordenesRoutes from './ordenes/routes.js';
 import { descargarProgramaExcel } from './excel/controller.js';
+import { estadoGeneracionAutomatica } from './generacionAutomatica.js';
 
 // mergeParams para recibir :programaId del router padre.
 const router = Router({
@@ -39,6 +40,7 @@ router.get(
 
 // Literal antes de /:id: la descarga no es un identificador de visita.
 router.get('/exportar-excel', descargarProgramaExcel);
+router.get('/generacion-automatica/estado', (_req, res) => res.json(estadoGeneracionAutomatica()));
 
 router.get(
   '/:id',

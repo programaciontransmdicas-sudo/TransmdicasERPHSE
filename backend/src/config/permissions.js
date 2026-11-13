@@ -31,6 +31,11 @@ export const ROLE_PERMISSIONS = {
     }
   },
 
+  gerencia: {
+    ...Object.fromEntries(ROLE_MODULES.map(modulo => [modulo, { ver: true, editar: false }])),
+    tickets: { ver: true, editar: false, crear: false, gestionar: false }
+  },
+
   supervisor: {
     resumen: {
       ver: true,

@@ -7,7 +7,7 @@ import { formatearPlaca } from '../../utils/formatos';
 //
 // Nada de datos de demostración. La matriz, los estados y las acciones salen del backend;
 // lo que el backend no publica, no se muestra.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { apiTiPr01 } from '../../services/api';
 import {
@@ -116,6 +116,7 @@ export const ModalReprogramar = ({ programaId, visita, onCerrar, onConfirmar, tr
   const [fallo, setFallo] = useState(null);
   const [destino, setDestino] = useState('');
   const [motivo, setMotivo] = useState('');
+
 
   // El primer setState va DESPUÉS del await y detrás del flag `vivo`: es la regla que exige
   // react-hooks/set-state-in-effect y la que ya se aplicó en el resto de la pantalla.
@@ -631,6 +632,10 @@ export function ProgramaTiPr01({ permisos, onIrAOrden }) {
   const [programa, setPrograma] = useState(null);
   const [fechaNegocio, setFechaNegocio] = useState(null);
   const [visitas, setVisitas] = useState([]);
+  const [estadoGenerador, setEstadoGenerador] = useState(null);
+  const ultimaGeneracion = useRef(null);
+  const [mostrarAnteriores, setMostrarAnteriores] =
+  useState(false);
   const [totalBackend, setTotalBackend] = useState(0);
   // true si tras paginar seguimos por debajo de `total`: la matriz estaría incompleta y
   // hay que decirlo, no disimularlo.
@@ -709,15 +714,54 @@ export function ProgramaTiPr01({ permisos, onIrAOrden }) {
     return () => { vivo = false; };
   }, [estadoFiltro, recarga]);
 
+  useEffect(() => {
+    if (!programa?.id) return;
+    const controller = new AbortController();
+    const consultar = async () => {
+      try {
+        const estado = await apiTiPr01.estadoGeneracionAutomatica(programa.id, controller.signal);
+        if (!controller.signal.aborted) {
+          setEstadoGenerador(estado);
+          if (!estado.ejecutando && estado.ultimaEjecucion && estado.ultimaEjecucion !== ultimaGeneracion.current) {
+            ultimaGeneracion.current = estado.ultimaEjecucion;
+            setRecarga(n => n + 1);
+          }
+        }
+      } catch (e) {
+        if (e.name !== 'AbortError') console.error('No se pudo consultar el generador:', e.message);
+      }
+    };
+    consultar();
+    const intervalo = setInterval(consultar, 60000);
+    return () => { controller.abort(); clearInterval(intervalo); };
+  }, [programa?.id]);
+
   // ------------------------------------------------------------------ derivados
   // Las quincenas son columnas derivadas de los datos: sin lista fija.
-  const quincenas = useMemo(() => {
+  const todasQuincenas = useMemo(() => {
   const visibles = estadoFiltro === 'CANCELADO'
     ? visitas
-    : visitas.filter(v => v.estado !== 'CANCELADO');
+    : visitas.filter(
+        visita => visita.estado !== 'CANCELADO'
+      );
 
   return quincenasDe(visibles);
 }, [visitas, estadoFiltro]);
+
+// El backend proporciona la fecha de negocio en America/Lima.
+const quincenaActual = fechaNegocio
+  ? `${fechaNegocio.slice(0, 7)}-${Number(fechaNegocio.slice(8, 10)) < 16 ? '01' : '16'}`
+  : null;
+
+const anteriores = todasQuincenas.filter(
+  quincena => quincenaActual && quincena.id < quincenaActual
+).length;
+
+const quincenas = mostrarAnteriores
+  ? todasQuincenas
+  : todasQuincenas.filter(
+      quincena => !quincenaActual || quincena.id >= quincenaActual
+    );
 
   // Una fila por unidad, con sus visitas agrupadas por quincena efectiva.
   //
@@ -1194,6 +1238,28 @@ export function ProgramaTiPr01({ permisos, onIrAOrden }) {
         <h3>
           Programación por quincena
         </h3>
+        {estadoGenerador && (
+          <div className="ti-smalltxt" role="status" style={{ margin: '12px 16px' }}>
+            {!estadoGenerador.habilitado ? 'Generación automática desactivada.'
+              : estadoGenerador.ejecutando ? 'Actualizando quincenas futuras…'
+              : estadoGenerador.error ? `No se pudo actualizar la programación: ${estadoGenerador.error}`
+              : estadoGenerador.resultado ? `Última actualización: ${estadoGenerador.resultado.creadas} visita(s) nuevas. ${estadoGenerador.resultado.sinReferencia} equipo(s) sin referencia. ${estadoGenerador.resultado.fallas.length} lote(s) requieren revisión.`
+              : 'Generación automática preparada; todavía no se ha ejecutado.'}
+          </div>
+        )}
+        {anteriores > 0 && (
+  <button
+    type="button"
+    className="ti-btn"
+    onClick={() =>
+      setMostrarAnteriores(valor => !valor)
+    }
+  >
+    {mostrarAnteriores
+      ? 'Ocultar quincenas anteriores'
+      : `Ver quincenas anteriores (${anteriores})`}
+  </button>
+)}
 
         {quincenas.length === 0 || filas.length === 0 ? (
           <div className="ti-empty">
@@ -1307,6 +1373,7 @@ export function ProgramaTiPr01({ permisos, onIrAOrden }) {
                             ? `+ ${alcance.anuales.map(a => a.tipo_equipo).join(' y ')} M3 anual`
                             : null,
                           etiquetaEstado(st),
+                          visita.quincena_reprogramada ? 'Reprogramada' : null,
                           historicas > 0
                             ? `(+${historicas} visita(s) cancelada(s) en esta quincena)`
                             : null
@@ -1338,7 +1405,7 @@ export function ProgramaTiPr01({ permisos, onIrAOrden }) {
                               onClick={() => setVisitaAbierta(visita)}
                             >
                               {textoCelda(alcance)}
-                              {fila.movidas.has(q.id) && <span className="ti-rastro-reprogramado">Reprogramado</span>}
+                              {(visita.quincena_reprogramada || fila.movidas.has(q.id)) && <span className="ti-rastro-reprogramado">Reprogramado</span>}
                               {alcance.anuales.length > 0 && <i className="ti-an" />}
                             </button>
                           </td>

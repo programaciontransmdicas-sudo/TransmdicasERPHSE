@@ -1,5 +1,5 @@
 import { pool } from '../../../../config/database.js';
-import { manejar, normalizarId, noEncontrado, ValidationError, esUsuarioAdmin } from '../../comun.js';
+import { manejar, normalizarId, noEncontrado, ValidationError, esUsuarioAdmin, esUsuarioGerencia } from '../../comun.js';
 import { obtenerOrdenPorId } from './repository.js';
 
 const fechaValida = valor => {
@@ -74,7 +74,7 @@ SELECT (SELECT count(*)::int FROM filtradas) AS total,
 
 export const listarAuditoriaOrden = manejar(async (req, res) => {
   if (!req.user?.id) throw new ValidationError('Se requiere una sesión válida', 401);
-  if (!esUsuarioAdmin(req.user)) {
+  if (!esUsuarioAdmin(req.user) && !esUsuarioGerencia(req.user)) {
     throw new ValidationError('Solo un administrador puede consultar la auditoría', 403);
   }
   const programaId = normalizarId('programaId', req.params.programaId);

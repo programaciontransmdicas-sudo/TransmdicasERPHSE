@@ -164,12 +164,14 @@ export const subirEvidenciaAutenticada = (
 // tambien responde 200.
 export const urlFirmadaEvidencia = (
   publicId,
-  ancho = null
+  ancho = null,
+  formato = null
 ) => cloudinary.url(publicId, {
   resource_type: 'image',
   type: 'authenticated',
   sign_url: true,
   secure: true,
+  ...(formato === 'jpg' ? { format: 'jpg' } : {}),
   ...(Number.isInteger(ancho) && ancho > 0
     ? {
       transformation: [

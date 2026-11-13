@@ -235,7 +235,8 @@ export const prepararNuevoUsuario =
       ![
         'admin',
         'supervisor',
-        'ti'
+        'ti',
+        'gerencia'
       ].includes(rolFinal)
     ) {
       throw new UsuarioValidationError(
@@ -367,7 +368,8 @@ export const actualizarUsuarioCompleto =
       ![
         'admin',
         'supervisor',
-        'ti'
+        'ti',
+        'gerencia'
       ].includes(rolFinal)
     ) {
       throw new UsuarioValidationError(

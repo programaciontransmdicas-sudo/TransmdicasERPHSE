@@ -215,7 +215,8 @@ export const tieneAccesoTotalFlota =
       rol === 'admin' ||
       rol === 'administrador' ||
       rol === 'ti' ||
-      rol === 'supervisor'
+      rol === 'supervisor' ||
+      rol === 'gerencia'
     );
   };
 

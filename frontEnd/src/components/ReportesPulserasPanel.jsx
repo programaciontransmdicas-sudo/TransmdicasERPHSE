@@ -140,30 +140,30 @@ export function ReportesPulserasPanel({
       }
     };
   const eliminarReporte = async reporte => {
-  if (!isAdmin || updatingId !== null) return;
+    if (!isAdmin || updatingId !== null) return;
 
-  const confirmado = window.confirm(
-    `¿Eliminar definitivamente el reporte PUL-${reporte.id}?`
-  );
-
-  if (!confirmado) return;
-
-  try {
-    setUpdatingId(reporte.id);
-
-    await api.deleteReportePulsera(reporte.id);
-
-    setReportes(actuales =>
-      actuales.filter(item => item.id !== reporte.id)
+    const confirmado = window.confirm(
+      `¿Eliminar definitivamente el reporte PUL-${reporte.id}?`
     );
 
-    toast.success('Reporte de pulsera eliminado');
-  } catch (error) {
-    toast.error(error.message || 'No se pudo eliminar el reporte');
-  } finally {
-    setUpdatingId(null);
-  }
-};
+    if (!confirmado) return;
+
+    try {
+      setUpdatingId(reporte.id);
+
+      await api.deleteReportePulsera(reporte.id);
+
+      setReportes(actuales =>
+        actuales.filter(item => item.id !== reporte.id)
+      );
+
+      toast.success('Reporte de pulsera eliminado');
+    } catch (error) {
+      toast.error(error.message || 'No se pudo eliminar el reporte');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -269,10 +269,10 @@ export function ReportesPulserasPanel({
                   </th>
                 ))}
                 {isAdmin && (
-  <th style={{ padding: '0.85rem' }}>
-    Acciones
-  </th>
-)}
+                  <th style={{ padding: '0.85rem' }}>
+                    Acciones
+                  </th>
+                )}
               </tr>
             </thead>
 
@@ -280,7 +280,7 @@ export function ReportesPulserasPanel({
               {reportes.map(reporte => {
                 const colorEstado =
                   COLORES_ESTADO[
-                    reporte.estado
+                  reporte.estado
                   ] ||
                   COLORES_ESTADO.Pendiente;
 
@@ -446,18 +446,18 @@ export function ReportesPulserasPanel({
                       ) : reporte.estado === 'Resuelto' ? 'Cierre anterior' : '—'}
                     </td>
                     {isAdmin && (
-  <td style={{ padding: '0.85rem' }}>
-    <button
-      type="button"
-      className="ui-button ui-button-danger"
-      disabled={updatingId !== null}
-      onClick={() => eliminarReporte(reporte)}
-    >
-      <UiIcon name="trash" />
-      {updatingId === reporte.id ? 'Procesando…' : 'Eliminar'}
-    </button>
-  </td>
-)}
+                      <td style={{ padding: '0.85rem' }}>
+                        <button
+                          type="button"
+                          className="ui-button ui-button-danger"
+                          disabled={updatingId !== null}
+                          onClick={() => eliminarReporte(reporte)}
+                        >
+                          <UiIcon name="trash" />
+                          {updatingId === reporte.id ? 'Procesando…' : 'Eliminar'}
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 );
               })}

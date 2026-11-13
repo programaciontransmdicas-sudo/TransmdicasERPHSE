@@ -100,6 +100,73 @@ const query = (parametros = {}) => {
 };
 
 export const apiTiPr01 = {
+  estadoGeneracionAutomatica: (programaId, signal) =>
+    pedirTi(`/${programaId}/programacion/generacion-automatica/estado`, { signal }, 'No se pudo consultar la generación automática'),
+  obtenerDesviacion: (
+  programaId,
+  visitaId,
+  otId,
+  signal
+) =>
+  pedirTi(
+    `/${programaId}/programacion/${visitaId}` +
+    `/ordenes-trabajo/${otId}/desviacion`,
+    { signal },
+    'No se pudo consultar la desviación'
+  ),
+
+guardarDesviacion: (
+  programaId,
+  visitaId,
+  otId,
+  existe,
+  descripcion,
+  imagen
+) => {
+  const body = new FormData();
+
+  body.append('existe', String(existe));
+
+  body.append(
+    'descripcion',
+    descripcion || ''
+  );
+
+  if (imagen) {
+    body.append('imagen', imagen);
+  }
+
+  return pedirTi(
+    `/${programaId}/programacion/${visitaId}` +
+    `/ordenes-trabajo/${otId}/desviacion`,
+    {
+      method: 'PUT',
+      body
+    },
+    'No se pudo guardar la desviación'
+  );
+},
+
+imagenDesviacion: async (
+  programaId,
+  visitaId,
+  otId,
+  signal
+) => {
+  const response = await fetchWithAuth(
+    `${TI}/${programaId}/programacion/${visitaId}` +
+    `/ordenes-trabajo/${otId}/desviacion/imagen`,
+    { signal }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      'No se pudo cargar la fotografía de la desviación'
+    );
+  }
+
+  return response.blob();
+},
   descargarProgramaExcel: async (programaId, parametros = {}) => {
     const respuesta = await fetchWithAuth(`${TI}/${programaId}/programacion/exportar-excel${query(parametros)}`);
     if (!respuesta.ok) {
@@ -614,6 +681,12 @@ export const api = {
   // ==========================================
   // RELACIONALES
   // ==========================================
+  getIndicadoresMantenimiento: async () => {
+    const response = await fetchWithAuth(`${BASE_URL}/stats/mantenimiento`);
+    if (!response.ok) throw new Error('Error al consultar mantenimiento');
+    return response.json();
+  },
+
   getStats: async () => {
     const response = await fetchWithAuth(`${BASE_URL}/stats/`);
     if (!response.ok) throw new Error('Error al cargar stats');

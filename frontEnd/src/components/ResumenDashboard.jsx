@@ -1,7 +1,8 @@
+import { quincenaActual, estadoEnQuincena } from '../utils/indicadoresQuincena';
 import { formatearPlaca } from '../utils/formatos';
 // DASHBOARD COLORES V2 - 04/09/2026
 import { useEffect, useState, useRef } from "react";
-import { api, BASE_API_URL } from "../services/api";
+import { api } from "../services/api";
 import {
   AreaChart,
   Area,
@@ -33,10 +34,15 @@ import { jsPDF } from "jspdf";
 export function ResumenDashboard() {
   const [data, setData] = useState({
     total: 0,
-    inspecciones: 0,
+    mantenimientos: 0,
     operativas: 0,
     observadas: 0,
     faltaRevision: 0,
+    sinInformacion: 0,
+    parciales: 0,
+    noEjecutadas: 0,
+    noAplican: 0,
+    aplicables: 0,
     trend: [],
     fallos: [],
     programasBarras: [],
@@ -44,7 +50,12 @@ export function ResumenDashboard() {
     inventario: [],
   });
   const [loading, setLoading] = useState(true);
+  const [errorCarga, setErrorCarga] = useState(null);
+  const [indicadores, setIndicadores] = useState(null);
   const [currentDate, setCurrentDate] = useState("");
+  const [quincena, setQuincena] = useState("actual");
+  const [quincenas, setQuincenas] = useState([]);
+  const [quincenaMostrada, setQuincenaMostrada] = useState(null);
   const dashboardRef = useRef(null);
 
   // Estados para el buscador de placas interno y stats públicos integrados
@@ -68,15 +79,61 @@ export function ResumenDashboard() {
     };
     setCurrentDate(new Date().toLocaleDateString("es-ES", options));
 
+    let activo = true;
     const loadData = async () => {
       try {
-        const [vResponse, sData, cData] = await Promise.all([
-          api.getVehiculos(1, 10000),
-          api.getStats(),
-          api.getChartStats(),
-        ]);
+        const mantenimiento = await api.getIndicadoresMantenimiento();
+        if (!activo) return;
+        setErrorCarga(null);
+        const actual = quincenaActual(mantenimiento.fecha_negocio);
+        if (!actual) throw new Error('El servidor no devolvió una fecha de negocio válida.');
+        const elegida = quincena === "actual" ? actual : quincena;
+        const opciones = new Set([actual]);
+        for (const unidad of mantenimiento.unidades) {
+          for (const visita of unidad.visitas_periodo || []) {
+            if (visita.quincena_efectiva) opciones.add(visita.quincena_efectiva);
+          }
+        }
+        setQuincenas([...opciones].filter(Boolean).sort().reverse());
+        setQuincenaMostrada(elegida);
+        const ordenesPeriodo = mantenimiento.ordenes.filter(o => o.quincena_efectiva === elegida);
+        const cData = { soporte: mantenimiento.soporte || [], inventario: mantenimiento.inventario || [] };
+        const actividad = { trabajosTI: mantenimiento.trabajosTI || [] };
+        setIndicadores(mantenimiento);
+        const estadoVisual = { 'AL DÍA': 'Operativa', 'VENCIDA': 'Observada', 'POR VENCER': 'Falta de revisión' };
+        const vData = mantenimiento.unidades.map(v => {
+          const estadoPeriodo = estadoEnQuincena(v.visitas_periodo, elegida, mantenimiento.fecha_negocio);
+          return { ...v, estadoPeriodo, estado: estadoVisual[estadoPeriodo] || 'Otros' };
+        });
+        const dias = {};
+        const resultados = {};
+        const nombresEquipo = {
+          CAMARAS: "Cámaras",
+          COPILOTO: "Tablet / Copiloto",
+          RADIO_BASE: "Radio base",
+          GPS: "GPS",
+          ADAS: "ADAS",
+        };
 
-        const vData = Array.isArray(vResponse.data) ? vResponse.data : [];
+        for (const orden of ordenesPeriodo) {
+          if (orden.fecha) dias[orden.fecha] = (dias[orden.fecha] || 0) + 1;
+          for (const equipo of orden.equipos || []) {
+            const tipo = equipo.tipo || "SIN_IDENTIFICAR";
+            if (!resultados[tipo]) {
+              resultados[tipo] = {
+                name: nombresEquipo[tipo] || tipo,
+                COMPLETADO: 0, PARCIAL: 0, PENDIENTE: 0,
+                NO_APLICA: 0, OTROS: 0,
+              };
+            }
+            const estado = ["COMPLETADO", "PARCIAL", "PENDIENTE", "NO_APLICA"].includes(equipo.estado)
+              ? equipo.estado : "OTROS";
+            resultados[tipo][estado]++;
+          }
+        }
+        const tendencia = Object.keys(dias).sort().slice(-14).map(date => ({ date, mantenimientos: dias[date] }));
+        const resultadosEquipos = Object.values(resultados).sort((a, b) => a.name.localeCompare(b.name, "es"));
+        setPublicStats({ ...actividad, ticker: [...ordenesPeriodo].sort((a, b) => `${b.fecha_cierre || ''} ${b.hora || ''}`.localeCompare(`${a.fecha_cierre || ''} ${a.hora || ''}`)).slice(0, 10).map(o => ({ ...o, estado: o.resultado })) });
         setPlacasDisponibles(
           [...new Set(vData.map((v) => v.placa).filter(Boolean))].sort(),
         );
@@ -154,12 +211,17 @@ export function ResumenDashboard() {
 
         setData({
           total: vData.length,
-          inspecciones: sData.totalInspecciones,
+          mantenimientos: ordenesPeriodo.length,
           operativas,
           observadas,
           faltaRevision,
-          trend: cData.trend,
-          fallos: cData.fallos,
+          sinInformacion: vData.filter(v => v.estadoPeriodo === 'SIN INFORMACIÓN').length,
+          parciales: vData.filter(v => v.estadoPeriodo === 'PARCIAL').length,
+          noEjecutadas: vData.filter(v => v.estadoPeriodo === 'NO EJECUTADO').length,
+          noAplican: vData.filter(v => v.estadoPeriodo === 'NO APLICA').length,
+          aplicables: vData.filter(v => ['AL DÍA', 'VENCIDA', 'POR VENCER', 'PARCIAL', 'NO EJECUTADO'].includes(v.estadoPeriodo)).length,
+          trend: tendencia,
+          fallos: resultadosEquipos,
           programasBarras: Object.values(clienteMap).sort((a, b) =>
             a.name.localeCompare(b.name, "es"),
           ),
@@ -167,19 +229,17 @@ export function ResumenDashboard() {
           inventario: cData.inventario || [],
         });
       } catch (error) {
-        console.error(error);
+        if (activo) {
+          console.error(error);
+          setErrorCarga(error.message || 'No se pudieron cargar los indicadores de mantenimiento');
+        }
       } finally {
-        setLoading(false);
+        if (activo) setLoading(false);
       }
     };
     loadData();
-
-    // Fetch Stats públicos para los paneles inferiores
-    fetch(`${BASE_API_URL}/api/public/stats`)
-      .then((res) => res.json())
-      .then((data) => setPublicStats(data))
-      .catch((err) => console.error("Error fetching public stats:", err));
-  }, []);
+    return () => { activo = false; };
+  }, [quincena]);
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -190,16 +250,15 @@ export function ResumenDashboard() {
     setResult(null);
 
     try {
-      const res = await fetch(
-        `${BASE_API_URL}/api/public/consulta/${placa.toUpperCase()}`,
-      );
-      if (!res.ok) {
-        if (res.status === 404)
-          throw new Error("Unidad no encontrada en nuestros registros.");
-        throw new Error("Error al consultar el estado de la unidad.");
-      }
-      const data = await res.json();
-      setResult(data);
+      const clave = placa.toUpperCase().replace(/[\s-]/g, '');
+      const unidad = indicadores?.unidades.find(u => String(u.placa).toUpperCase().replace(/[\s-]/g, '') === clave);
+      if (!unidad) throw new Error('Unidad no encontrada en nuestros registros.');
+      const ordenes = indicadores.ordenes.filter(o => String(o.placa).toUpperCase().replace(/[\s-]/g, '') === clave);
+      const ultima = ordenes[0];
+      const equipo = tipo => ultima?.equipos?.find(e => e.tipo === tipo)?.estado || 'Sin registro';
+      setResult({ placa: unidad.placa, estado_general: unidad.estado, fecha: ultima?.fecha || 'Sin registro', hora: '',
+        camaras: equipo('CAMARAS'), radio: equipo('RADIO_BASE'), tablet: equipo('COPILOTO'),
+        timeline: ordenes.slice(0, 3).map(o => ({ fecha: o.fecha, hora: '', estado: o.resultado })), fotos: [] });
       setShowResultModal(true);
     } catch (err) {
       setErrorSearch(err.message);
@@ -234,8 +293,9 @@ export function ResumenDashboard() {
       </div>
     );
 
-  const porcentajeSalud =
-    data.total > 0 ? Math.round((data.operativas / data.total) * 100) : 0;
+  if (errorCarga) return <div className="dashboard-empty-message" role="alert">{errorCarga}</div>;
+  const unidadesConProgramacion = data.aplicables;
+  const porcentajeSalud = unidadesConProgramacion > 0 ? Math.round((data.operativas / unidadesConProgramacion) * 100) : null;
 
   const handleExportPDF = () => {
     const element = dashboardRef.current;
@@ -419,7 +479,7 @@ export function ResumenDashboard() {
         <h1>REPORTE GRÁFICO - ERPHSE</h1>
         <p>Generado el: {currentDate}</p>
         <p>
-          <strong>Eficiencia Global de la Flota: {porcentajeSalud}%</strong>
+          <strong>Programación al día: {porcentajeSalud == null ? "Sin datos" : `${porcentajeSalud}%`}</strong>
         </p>
       </div>
 
@@ -428,12 +488,21 @@ export function ResumenDashboard() {
           <h2 className="dashboard-title">Resumen operativo</h2>
           <p className="dashboard-subtitle">
             {currentDate.charAt(0).toUpperCase() + currentDate.slice(1)} ·{" "}
-            {porcentajeSalud > 80
-              ? "La flota mantiene un buen nivel operativo."
-              : "Algunas unidades requieren atención."}
+            {porcentajeSalud == null
+              ? "No hay próximas visitas materializadas para calcular el indicador."
+              : porcentajeSalud > 80
+                ? "La mayoría de las programaciones tienen plazo vigente."
+                : "Revisa las programaciones próximas y vencidas."}
           </p>
         </div>
         <div className="dashboard-actions">
+          <label className="dashboard-quincena-filter">
+            <span>Quincena</span>{" "}
+            <select value={quincena} onChange={e => setQuincena(e.target.value)} aria-label="Filtrar indicadores por quincena">
+              <option value="actual">Quincena actual{quincenaMostrada && quincena === 'actual' ? ` · ${quincenaMostrada}` : ''}</option>
+              {quincenas.filter(q => q !== quincenaActual(indicadores?.fecha_negocio)).map(q => <option key={q} value={q}>{q.slice(8,10) === '01' ? 'Primera' : 'Segunda'} quincena · {q.slice(5,7)}/{q.slice(0,4)}</option>)}
+            </select>
+          </label>
           {/* Buscador de Placas Interno */}
           <form onSubmit={handleSearch} className="dashboard-search-form">
             <input
@@ -520,6 +589,8 @@ export function ResumenDashboard() {
         </div>
       </div>
 
+      <p className="ti-smalltxt">Programación y OT: quincena efectiva {quincenaMostrada || '—'}. Soporte e inventario: histórico general.</p>
+      {(data.parciales > 0 || data.noEjecutadas > 0 || data.noAplican > 0) && <p className="ti-smalltxt">En esta quincena: {data.parciales} parciales · {data.noEjecutadas} no ejecutadas · {data.noAplican} no aplican.</p>}
       <div className="dashboard-kpi-grid">
         <div
           className="power-card dashboard-kpi-card dashboard-kpi-card--total"
@@ -621,7 +692,7 @@ export function ResumenDashboard() {
                 textTransform: "uppercase",
               }}
             >
-              Operativas
+              Al día
             </p>
             <h3
               style={{
@@ -635,7 +706,7 @@ export function ResumenDashboard() {
               {data.operativas}
             </h3>
             <span className="dashboard-kpi-caption">
-              {porcentajeSalud}% de la flota
+              {porcentajeSalud == null ? "Sin datos" : `${porcentajeSalud}% de unidades con programación`}
             </span>
           </div>
         </div>
@@ -681,7 +752,7 @@ export function ResumenDashboard() {
                 textTransform: "uppercase",
               }}
             >
-              Observados
+              Vencidas
             </p>
             <h3
               style={{
@@ -694,7 +765,7 @@ export function ResumenDashboard() {
             >
               {data.observadas}
             </h3>
-            <span className="dashboard-kpi-caption">Requieren atención</span>
+            <span className="dashboard-kpi-caption">Plazo de quincena vencido</span>
           </div>
         </div>
         <div
@@ -739,7 +810,7 @@ export function ResumenDashboard() {
                 textTransform: "uppercase",
               }}
             >
-              Pendientes
+              Por vencer
             </p>
             <h3
               style={{
@@ -752,7 +823,20 @@ export function ResumenDashboard() {
             >
               {data.faltaRevision}
             </h3>
-            <span className="dashboard-kpi-caption">Falta de revisión</span>
+            <span className="dashboard-kpi-caption">Por vencer</span>
+          </div>
+        </div>
+        <div className="power-card dashboard-kpi-card dashboard-kpi-card--sin-informacion">
+          <div aria-hidden="true">
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                d="M12 8v4m0 4h.01M12 3a9 9 0 100 18 9 9 0 000-18z" />
+            </svg>
+          </div>
+          <div>
+            <p>Sin información</p>
+            <h3>{data.sinInformacion}</h3>
+            <span className="dashboard-kpi-caption">Sin visita en la quincena</span>
           </div>
         </div>
         <div
@@ -797,7 +881,7 @@ export function ResumenDashboard() {
                 textTransform: "uppercase",
               }}
             >
-              Inspecciones
+              OT cerradas
             </p>
             <h3
               style={{
@@ -808,7 +892,7 @@ export function ResumenDashboard() {
                 lineHeight: "1",
               }}
             >
-              {data.inspecciones}
+              {data.mantenimientos}
             </h3>
             <span className="dashboard-kpi-caption">Histórico acumulado</span>
           </div>
@@ -820,7 +904,7 @@ export function ResumenDashboard() {
           <div className="dashboard-panel-heading">
             <div>
               <h3>Distribución de vehículos por cliente</h3>
-              <p>Estado operativo actual del maestro de flota</p>
+              <p>Estado de las programaciones de mantenimiento</p>
             </div>
             <span>Actualizado hoy</span>
           </div>
@@ -862,24 +946,28 @@ export function ResumenDashboard() {
                 />
                 <Bar
                   dataKey="Operativa"
+                  name="Al día"
                   stackId="estado"
                   fill="var(--viz-teal)"
                   barSize={12}
                 />
                 <Bar
                   dataKey="Observada"
+                  name="Vencidas"
                   stackId="estado"
                   fill="var(--viz-coral)"
                   barSize={12}
                 />
                 <Bar
                   dataKey="Falta de revisión"
+                  name="Por vencer"
                   stackId="estado"
                   fill="var(--viz-amber)"
                   barSize={12}
                 />
                 <Bar
                   dataKey="Otros"
+                  name="Otros / sin información"
                   stackId="estado"
                   fill="var(--text-secondary)"
                   barSize={12}
@@ -888,10 +976,10 @@ export function ResumenDashboard() {
             </ResponsiveContainer>
           </div>
           <div className="dashboard-operation-legend">
-            <span><i className="is-blue"></i>Operativas</span>
-            <span><i className="is-red"></i>Observadas</span>
-            <span><i className="is-yellow"></i>Pendientes</span>
-            <span><i className="is-muted"></i>Otros estados</span>
+            <span><i className="is-blue"></i>Al día</span>
+            <span><i className="is-red"></i>Vencidas</span>
+            <span><i className="is-yellow"></i>Por vencer</span>
+            <span><i className="is-muted"></i>Otros / sin información</span>
           </div>
         </section>
 
@@ -908,7 +996,7 @@ export function ResumenDashboard() {
               <div className="dashboard-activity-item" key={`inspection-${index}`}>
                 <span className="dashboard-activity-symbol">✓</span>
                 <div>
-                  <strong>Inspección registrada</strong>
+                  <strong>OT de mantenimiento cerrada</strong>
                   <p>{formatearPlaca(item.placa)} · {item.hora || "Hora no registrada"}</p>
                 </div>
               </div>
@@ -934,7 +1022,7 @@ export function ResumenDashboard() {
       <div className="dashboard-section-heading">
         <div>
           <h3>Análisis complementario</h3>
-          <p>Indicadores detallados de inspecciones, soporte e inventario TI</p>
+          <p>Indicadores de mantenimiento, soporte e inventario TI</p>
         </div>
       </div>
 
@@ -951,7 +1039,7 @@ export function ResumenDashboard() {
               color: "var(--text-primary)",
             }}
           >
-            Rend. Inspecciones
+            OT cerradas por fecha de ejecución
           </h3>
           <div style={{ width: "100%", height: 160 }}>
             <ResponsiveContainer width="100%" height={160} minWidth={1}>
@@ -1000,8 +1088,8 @@ export function ResumenDashboard() {
                 <Tooltip content={<CustomTooltip />} />
                 <Area
                   type="monotone"
-                  dataKey="inspecciones"
-                  name="Inspecciones"
+                  dataKey="mantenimientos"
+                  name="OT cerradas"
                   stroke="var(--viz-blue)"
                   strokeWidth={2}
                   fillOpacity={1}
@@ -1031,7 +1119,7 @@ export function ResumenDashboard() {
               alignSelf: "flex-start",
             }}
           >
-            Salud Global
+            Programaciones al día
           </h3>
           <div
             style={{
@@ -1045,8 +1133,8 @@ export function ResumenDashboard() {
               <PieChart>
                 <Pie
                   data={[
-                    { value: porcentajeSalud },
-                    { value: 100 - porcentajeSalud },
+                    { value: porcentajeSalud ?? 0 },
+                    { value: 100 - (porcentajeSalud ?? 0) },
                   ]}
                   cx="50%"
                   cy="80%"
@@ -1089,7 +1177,7 @@ export function ResumenDashboard() {
                   lineHeight: 1,
                 }}
               >
-                {porcentajeSalud}%
+                {porcentajeSalud == null ? 'Sin datos' : `${porcentajeSalud}%`}
               </span>
             </div>
           </div>
@@ -1107,7 +1195,7 @@ export function ResumenDashboard() {
               color: "var(--text-primary)",
             }}
           >
-            Distribución Operativa
+            Distribución de mantenimiento
           </h3>
           <div style={{ width: "100%", height: 160, minWidth: 0 }}>
             <ResponsiveContainer width="99%" minWidth={1}>
@@ -1143,22 +1231,26 @@ export function ResumenDashboard() {
                 />
                 <Bar
                   dataKey="Operativa"
+                  name="Al día"
                   stackId="a"
                   fill="var(--green-text)"
                   barSize={20}
                 />
                 <Bar
                   dataKey="Observada"
+                  name="Vencidas"
                   stackId="a"
                   fill="var(--red-text)"
                   barSize={20}
                 />
                 <Bar
                   dataKey="Falta de revisión"
+                  name="Por vencer"
                   stackId="a"
                   fill="var(--yellow-text)"
                   barSize={20}
                 />
+                <Bar dataKey="Otros" name="Otros / sin información" stackId="a" fill="var(--text-secondary)" barSize={20} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -1176,49 +1268,28 @@ export function ResumenDashboard() {
               color: "var(--text-primary)",
             }}
           >
-            Análisis de Incidencias
+            Resultados por equipo en OT cerradas
           </h3>
-          <div style={{ width: "100%", height: 160, minWidth: 0 }}>
-            <ResponsiveContainer width="99%" minWidth={1}>
-              <PieChart>
-                <Pie
-                  data={data.fallos}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={70}
-                  innerRadius={40}
-                  dataKey="errores"
-                  stroke="none"
-                  paddingAngle={2}
-                >
-                  {data.fallos.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={
-                        [
-                          "var(--viz-coral)",
-                          "var(--viz-amber)",
-                          "var(--viz-blue)",
-                        ][index % 3]
-                      }
-                    />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-                <Legend
-                  iconType="square"
-                  layout="vertical"
-                  verticalAlign="middle"
-                  align="right"
-                  wrapperStyle={{
-                    fontWeight: "bold",
-                    color: "var(--text-primary)",
-                    fontSize: "10px",
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
+          {data.fallos.length === 0 ? (
+            <p className="dashboard-empty-message">No hay resultados de equipos en OT cerradas.</p>
+          ) : (
+            <div style={{ width: "100%", height: Math.max(230, data.fallos.length * 36 + 70), minWidth: 0 }}>
+              <ResponsiveContainer width="100%" height="100%" minWidth={1}>
+                <BarChart data={data.fallos} layout="vertical" margin={{ top: 5, right: 15, left: 5, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--chart-grid)" />
+                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10, fill: "var(--text-secondary)" }} />
+                  <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 10, fill: "var(--text-primary)" }} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend wrapperStyle={{ fontSize: "10px" }} />
+                  <Bar dataKey="COMPLETADO" name="Completado" stackId="resultados" fill="var(--viz-teal)" />
+                  <Bar dataKey="PARCIAL" name="Parcial" stackId="resultados" fill="var(--viz-blue)" />
+                  <Bar dataKey="PENDIENTE" name="Pendiente" stackId="resultados" fill="var(--viz-amber)" />
+                  <Bar dataKey="NO_APLICA" name="No aplica" stackId="resultados" fill="var(--text-secondary)" />
+                  {data.fallos.some(item => item.OTROS > 0) && <Bar dataKey="OTROS" name="Otros" stackId="resultados" fill="var(--viz-purple)" />}
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
 
         <div
@@ -1309,7 +1380,7 @@ export function ResumenDashboard() {
               gap: "0.5rem",
             }}
           >
-            <span>📋</span> Últimas Inspecciones
+            <span>📋</span> Últimos mantenimientos
           </h3>
           <div
             style={{
@@ -1329,7 +1400,7 @@ export function ResumenDashboard() {
                     backgroundColor: "var(--bg-color)",
                     padding: "0.75rem",
                     borderRadius: "0.5rem",
-                    borderLeft: `4px solid ${t.estado === "APROBADO" ? "var(--green-text)" : "var(--yellow-text)"}`,
+                    borderLeft: `4px solid ${t.estado === "EJECUTADO" ? "var(--green-text)" : "var(--yellow-text)"}`,
                   }}
                 >
                   <div
@@ -1363,14 +1434,12 @@ export function ResumenDashboard() {
                       margin: "0.25rem 0 0 0",
                       fontSize: "0.85rem",
                       color:
-                        t.estado === "APROBADO"
+                        t.estado === "EJECUTADO"
                           ? "var(--green-text)"
                           : "var(--yellow-text)",
                     }}
                   >
-                    {t.estado === "APROBADO"
-                      ? "✅ Aprobado (Condiciones OK)"
-                      : "⚠️ Observado (Requiere revisión)"}
+                    {t.estado || 'Resultado no disponible'}
                   </p>
                 </div>
               ))
@@ -1383,7 +1452,7 @@ export function ResumenDashboard() {
                   marginTop: "1rem",
                 }}
               >
-                No hay inspecciones registradas hoy.
+                No hay OT de mantenimiento cerradas.
               </p>
             )}
           </div>
@@ -1537,7 +1606,7 @@ export function ResumenDashboard() {
             <div
               style={{
                 backgroundColor:
-                  result.estado_general === "APROBADO" ? "#0e9f6e" : "#dc3b2a",
+                  result.estado_general === "AL DÍA" ? "#0e9f6e" : "#dc3b2a",
                 color: "white",
                 padding: "2rem 1.5rem 1.5rem 1.5rem",
                 textAlign: "center",
@@ -1580,7 +1649,7 @@ export function ResumenDashboard() {
                   borderRadius: "2rem",
                 }}
               >
-                ESTADO: {result.estado_general}
+                PROGRAMA: {result.estado_general}
               </p>
             </div>
 
@@ -1601,7 +1670,7 @@ export function ResumenDashboard() {
                       color: "var(--text-secondary)",
                     }}
                   >
-                    Última Inspección
+                    Último mantenimiento
                   </p>
                   <p
                     style={{
@@ -1659,11 +1728,8 @@ export function ResumenDashboard() {
                   <span
                     style={{
                       color:
-                        result.camaras === "OK" ||
-                        result.camaras === "NO APLICA" ||
-                        result.camaras === "N/A"
-                          ? "#0e9f6e"
-                          : "#dc3b2a",
+                        result.camaras === "COMPLETADO" ? "#0e9f6e"
+                          : ["NO_APLICA", "Sin registro"].includes(result.camaras) ? "#64748b" : "#a8650a",
                       fontWeight: "bold",
                       fontSize: "0.9rem",
                     }}
@@ -1694,11 +1760,8 @@ export function ResumenDashboard() {
                   <span
                     style={{
                       color:
-                        result.radio === "OK" ||
-                        result.radio === "NO APLICA" ||
-                        result.radio === "N/A"
-                          ? "#0e9f6e"
-                          : "#dc3b2a",
+                        result.radio === "COMPLETADO" ? "#0e9f6e"
+                          : ["NO_APLICA", "Sin registro"].includes(result.radio) ? "#64748b" : "#a8650a",
                       fontWeight: "bold",
                       fontSize: "0.9rem",
                     }}
@@ -1729,11 +1792,8 @@ export function ResumenDashboard() {
                   <span
                     style={{
                       color:
-                        result.tablet === "OK" ||
-                        result.tablet === "NO APLICA" ||
-                        result.tablet === "N/A"
-                          ? "#0e9f6e"
-                          : "#dc3b2a",
+                        result.tablet === "COMPLETADO" ? "#0e9f6e"
+                          : ["NO_APLICA", "Sin registro"].includes(result.tablet) ? "#64748b" : "#a8650a",
                       fontWeight: "bold",
                       fontSize: "0.9rem",
                     }}
@@ -1847,13 +1907,13 @@ export function ResumenDashboard() {
                         <span
                           style={{
                             color:
-                              item.estado === "APROBADO"
+                              item.estado === "EJECUTADO"
                                 ? "#0e9f6e"
                                 : "#dc3b2a",
                             fontSize: "1rem",
                           }}
                         >
-                          {item.estado === "APROBADO" ? "🟢" : "🔴"}
+                          {item.estado === "EJECUTADO" ? "🟢" : "🔴"}
                         </span>
                         <strong>{item.fecha}</strong> ({item.hora}) -{" "}
                         {item.estado}
@@ -1863,67 +1923,9 @@ export function ResumenDashboard() {
                 </div>
               )}
 
-              {/* Evidencias Fotográficas */}
-              <h4
-                className="no-print"
-                style={{
-                  fontSize: "0.85rem",
-                  fontWeight: "bold",
-                  color: "var(--text-primary)",
-                  margin: "0 0 0.5rem 0",
-                  textTransform: "uppercase",
-                }}
-              >
-                Evidencia Fotográfica
-              </h4>
-              <div
-                className="no-print"
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))",
-                  gap: "0.5rem",
-                  marginBottom: "1.5rem",
-                }}
-              >
-                {result.fotos &&
-                  result.fotos.map((foto, idx) =>
-                    foto.url ? (
-                      <div key={idx} style={{ textAlign: "center" }}>
-                        <a href={foto.url} target="_blank" rel="noreferrer">
-                          <img
-                            src={foto.url}
-                            alt={foto.tipo}
-                            style={{
-                              width: "100%",
-                              height: "70px",
-                              objectFit: "cover",
-                              borderRadius: "0.5rem",
-                              border: "1px solid #cbd5e1",
-                            }}
-                          />
-                        </a>
-                      </div>
-                    ) : (
-                      <div
-                        key={idx}
-                        style={{
-                          textAlign: "center",
-                          height: "70px",
-                          backgroundColor: "#f1f5f9",
-                          borderRadius: "0.5rem",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "#94a3b8",
-                          fontSize: "0.7rem",
-                          border: "1px dashed #cbd5e1",
-                        }}
-                      >
-                        Sin Foto
-                      </div>
-                    ),
-                  )}
-              </div>
+              <p className="no-print" style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                Las fotografías de mantenimiento están disponibles en el detalle de la OT.
+              </p>
 
               {/* Botones de Acción */}
               <div

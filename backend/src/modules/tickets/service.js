@@ -103,7 +103,8 @@ export const contextoTicket =
     const accesoTotal =
       rol === 'admin' ||
       rol === 'ti' ||
-      rol === 'supervisor';
+      rol === 'supervisor' ||
+      rol === 'gerencia';
 
     const clienteOperacionIds =
       accesoTotal

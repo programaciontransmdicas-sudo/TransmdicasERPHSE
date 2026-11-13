@@ -19,6 +19,11 @@ import {
   retirarEvidenciaDeOrden
 } from './controller.js';
 
+import {
+  obtenerDesviacion,
+  guardarDesviacion,
+  imagenDesviacion
+} from './desviacion.js';
 // El multer propio de la evidencia: un archivo, 10 MB, solo JPEG/PNG/WEBP. Sus errores
 // -LIMIT_FILE_SIZE e INVALID_FILE_TYPE- ya los traduce middlewares/errors.js, igual que
 // para entregas, inspecciones y tickets.
@@ -67,6 +72,21 @@ router.get(
 router.get('/:otId/auditoria', listarAuditoriaOrden);
 router.get('/:otId/checklist', listarChecklistOrden);
 router.patch('/:otId/checklist/:actividadId', editarActividadChecklist);
+router.get(
+  '/:otId/desviacion',
+  obtenerDesviacion
+);
+
+router.put(
+  '/:otId/desviacion',
+  receiveEvidenciaOrden,
+  guardarDesviacion
+);
+
+router.get(
+  '/:otId/desviacion/imagen',
+  imagenDesviacion
+);
 
 // PATCH y no PUT: cada uno toca un subconjunto declarado de campos y deja el resto intacto.
 router.patch(

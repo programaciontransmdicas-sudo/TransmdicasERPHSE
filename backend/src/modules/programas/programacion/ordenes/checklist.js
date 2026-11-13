@@ -1,6 +1,6 @@
 import { pool } from '../../../../config/database.js';
 import { logAction } from '../../../../services/auditService.js';
-import { manejar, normalizarId, noEncontrado, ValidationError, esUsuarioTi, esUsuarioAdmin } from '../../comun.js';
+import { manejar, normalizarId, noEncontrado, ValidationError, esUsuarioTi, esUsuarioAdmin, esUsuarioGerencia } from '../../comun.js';
 import { obtenerOrdenPorId, obtenerOrdenParaEscritura } from './repository.js';
 
 export const prepararActividadChecklist = datos => {
@@ -18,6 +18,33 @@ export const prepararActividadChecklist = datos => {
   if (observacion && observacion.length > 4000) throw new ValidationError('La observación admite hasta 4000 caracteres');
   return { estado: datos.estado, observacion };
 };
+export const resultadoChecklist = actividades => {
+  if (!actividades.length) {
+    return null;
+  }
+
+  const realizados = actividades.filter(
+    actividad => actividad.estado === 'REALIZADO'
+  ).length;
+
+  const noAplican = actividades.filter(
+    actividad => actividad.estado === 'NO_APLICA'
+  ).length;
+
+  if (noAplican === actividades.length) {
+    return 'NO_APLICA';
+  }
+
+  if (realizados === actividades.length) {
+    return 'COMPLETADO';
+  }
+
+  if (realizados > 0) {
+    return 'PARCIAL';
+  }
+
+  return 'PENDIENTE';
+};
 const autorizar = usuario => {
   if (!usuario?.id) throw new ValidationError('Se requiere una sesión válida', 401);
   if (!esUsuarioTi(usuario) && !esUsuarioAdmin(usuario)) {
@@ -32,7 +59,8 @@ const ids = req => [
 
 export const listarChecklistOrden = manejar(async (req, res) => {
   const supervisor = String(req.user?.rol || '').trim().toLowerCase() === 'supervisor';
-  if (!supervisor) autorizar(req.user);
+  const soloLectura = supervisor || esUsuarioGerencia(req.user);
+  if (!soloLectura) autorizar(req.user);
   else if (!req.user?.id) throw new ValidationError('Se requiere una sesión válida', 401);
   const [programaId, programacionId, otId] = ids(req);
   const orden = await obtenerOrdenPorId(programaId, programacionId, otId);
@@ -58,7 +86,7 @@ export const listarChecklistOrden = manejar(async (req, res) => {
   )
     GROUP BY d.id,e.tipo_equipo,e.nivel_mantenimiento ORDER BY d.id`, [otId]);
   res.setHeader('Cache-Control', 'no-store');
-  return res.json({ orden_trabajo_id: otId, editable: !supervisor && orden.estado === 'ABIERTA', apartados: result.rows });
+  return res.json({ orden_trabajo_id: otId, editable: !soloLectura && orden.estado === 'ABIERTA', apartados: result.rows });
 }, { mensajeGenerico: 'No se pudo consultar el checklist' });
 
 export const editarActividadChecklist = manejar(async (req, res) => {
@@ -82,9 +110,92 @@ export const editarActividadChecklist = manejar(async (req, res) => {
     await logAction(req.user.id, `Actualizó la actividad ${actividadId} del checklist de la OT ${otId}`,
       'ordenes_trabajo_detalle_actividades', req, previo.rows[0], actualizado.rows[0],
       { client, propagarError: true });
+      const detalleId =
+  previo.rows[0].orden_trabajo_detalle_id;
+
+const actividades = await client.query(
+  `SELECT estado
+   FROM ordenes_trabajo_detalle_actividades
+   WHERE orden_trabajo_detalle_id = $1`,
+  [detalleId]
+);
+
+const estado =
+  resultadoChecklist(actividades.rows);
+
+const detalleAnterior = await client.query(
+  `SELECT
+      d.*,
+      e.nivel_mantenimiento AS nivel_programado
+   FROM ordenes_trabajo_detalle d
+   JOIN programacion_mantenimiento_equipos e
+     ON e.id = d.programacion_equipo_id
+   WHERE d.id = $1
+     AND d.orden_trabajo_id = $2
+   FOR UPDATE OF d`,
+  [detalleId, otId]
+);
+
+const anterior = detalleAnterior.rows[0];
+
+const nivel =
+  estado === 'COMPLETADO'
+    ? anterior.nivel_programado
+    : null;
+
+let detalle = anterior;
+
+if (
+  estado &&
+  (
+    anterior.estado !== estado ||
+    anterior.nivel_completado !== nivel
+  )
+) {
+  const actualizadoDetalle = await client.query(
+    `UPDATE ordenes_trabajo_detalle
+     SET estado = $2,
+         nivel_completado = $3
+     WHERE id = $1
+     RETURNING *`,
+    [detalleId, estado, nivel]
+  );
+
+  detalle = actualizadoDetalle.rows[0];
+
+  await logAction(
+    req.user.id,
+    `Actualizó automáticamente el resultado del equipo en la OT ${otId}`,
+    'ordenes_trabajo_detalle',
+    req,
+    anterior,
+    detalle,
+    {
+      client,
+      propagarError: true
+    }
+  );
+}
     await client.query('COMMIT');
     const a = actualizado.rows[0];
-    return res.json({ success: true, actividad: { id: a.id, estado: a.estado, observacion: a.observacion, actualizado_en: a.actualizado_en } });
+   return res.json({
+  success: true,
+
+  detalle: {
+    id: detalle.id,
+    estado: detalle.estado,
+    nivel_completado:
+      detalle.nivel_completado,
+    updated_at: detalle.updated_at
+  },
+
+  actividad: {
+    id: a.id,
+    estado: a.estado,
+    observacion: a.observacion,
+    actualizado_en: a.actualizado_en
+  }
+});
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;

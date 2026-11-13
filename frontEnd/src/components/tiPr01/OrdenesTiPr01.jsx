@@ -1,6 +1,7 @@
 import { FiltrosFechasOt } from './FiltrosFechasOt';
 import { diaPeru, fechaEjecucionOt, fechaVisibleOt, filtrarYOrdenarFechasOt } from './fechasOt';
 import { formatearPlaca } from '../../utils/formatos';
+import { DesviacionOrden } from './DesviacionOrden';
 // TI-PR-01 · F2.1 + F2.2 + F2.3 · PANTALLA ÓRDENES DE TRABAJO
 // ============================================================================
 // Dos fuentes de verdad, separadas a propósito:
@@ -35,7 +36,7 @@ import { formatearPlaca } from '../../utils/formatos';
 // pide el histórico solo a las visitas que declaran al menos una, en lotes, así que el
 // número de peticiones lo marca la cantidad real de órdenes, no la de visitas: con cero
 // órdenes no se emite ninguna petición extra.
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { apiTiPr01 } from '../../services/api';
 // F3 · el barrido de programacion + ordenes vive en un helper compartido, para que
@@ -292,12 +293,17 @@ const FormularioCabecera = ({ orden, guardando, onGuardar }) => {
 // Lo único que sí se cumple es el CONTRATO DE PAYLOAD: PENDIENTE y NO_APLICA exigen
 // "nivel_completado": null de forma EXPLÍCITA, porque el backend no infiere un campo
 // ausente. Por eso, al elegir esos dos estados, la clave viaja igualmente.
-const FormularioDetalle = ({ detalle, estados, guardando, onGuardar }) => {
+const FormularioDetalle = ({ detalle, estados, guardando, onGuardar, registrarFormulario }) => {
   const [estado, setEstado] = useState(detalle.estado);
   const [nivel, setNivel] = useState(comoTexto(detalle.nivel_completado));
   const [observaciones, setObservaciones] = useState(comoTexto(detalle.observaciones));
   const [local, setLocal] = useState(null);
   const [enlaceVideo, setEnlaceVideo] = useState(comoTexto(detalle.enlace_video));
+
+  useEffect(() => {
+    setEstado(detalle.estado);
+    setNivel(comoTexto(detalle.nivel_completado));
+  }, [detalle.estado, detalle.nivel_completado]);
 
   const exigencia = exigenciaDeResultado(detalle, estado);
   const nivelBloqueado = exigencia.nivelFijo;
@@ -334,6 +340,26 @@ const FormularioDetalle = ({ detalle, estados, guardando, onGuardar }) => {
   };
 
   const cambios = Object.keys(delta());
+  const prepararRef = useRef(null);
+  prepararRef.current = () => {
+    const campos = delta();
+    if (!Object.keys(campos).length) return { detalleId: detalle.id, campos };
+    if (detalle.tipo_equipo === 'CAMARAS' && campos.enlace_video) {
+      try {
+        const url = new URL(enlaceVideo.trim());
+        if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) throw new Error();
+      } catch {
+        const error = { status: 400, message: 'Ingresa un enlace válido que comience con https:// o http://.' };
+        setLocal(error);
+        return { detalleId: detalle.id, error };
+      }
+    }
+    return { detalleId: detalle.id, campos };
+  };
+  useEffect(() => {
+    registrarFormulario(detalle.id, prepararRef);
+    return () => registrarFormulario(detalle.id, null);
+  }, [registrarFormulario, detalle.id]);
 
   return (
     <>
@@ -404,7 +430,8 @@ const FormularioDetalle = ({ detalle, estados, guardando, onGuardar }) => {
           disabled={guardando || cambios.length === 0}
           onClick={async () => {
             setLocal(null);
-            if (detalle.tipo_equipo === 'CAMARAS' && enlaceVideo.trim()) {
+            const campos = delta();
+            if (detalle.tipo_equipo === 'CAMARAS' && campos.enlace_video) {
               try {
                 const url = new URL(enlaceVideo.trim());
                 if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) throw new Error();
@@ -413,7 +440,7 @@ const FormularioDetalle = ({ detalle, estados, guardando, onGuardar }) => {
                 return;
               }
             }
-            const e = await onGuardar(detalle.id, delta());
+            const e = await onGuardar(detalle.id, campos);
             if (e) setLocal(e);
           }}
         >
@@ -905,8 +932,8 @@ const ModalAnular = ({ orden, trabajando, onCerrarModal, onConfirmar }) => {
 // Solo lectura. Todo lo que se pinta sale de la respuesta del backend; lo que el backend
 // no publica se dice que no lo publica, no se rellena.
 export const DetalleOrden = ({
-  programa, programaId, orden, visita, onVolver, onVerEnPrograma, soloLectura = false,
-  estadosDetalle, guardando, onGuardarCabecera, onGuardarDetalle,
+  programa, programaId, orden, visita, onVolver, onVerEnPrograma, soloLectura = false, soloConsulta = false,
+  estadosDetalle, guardando, onGuardarCabecera, onGuardarDetalle, onResultadoChecklist,
   trabajando, resultadoCierre, onPedirCierre, onPedirAnulacion
 }) => {
   const alcance = alcanceDeOrden(orden);
@@ -914,7 +941,46 @@ export const DetalleOrden = ({
   const acciones = orden.acciones ?? {};
   const detalles = orden.detalles?.items ?? [];
   // La autoridad sobre si se puede editar es el backend, no el estado leído aquí.
-  const editable = !soloLectura && Boolean(acciones.puede_editar);
+  const editable = !soloLectura && !soloConsulta && Boolean(acciones.puede_editar);
+  const formularios = useRef(new Map());
+  const loteActivo = useRef(false);
+  const [guardandoLote, setGuardandoLote] = useState(false);
+  const registrarFormulario = useCallback((id, ref) => {
+    if (ref) formularios.current.set(id, ref);
+    else formularios.current.delete(id);
+  }, []);
+  const guardarTodos = async () => {
+    if (loteActivo.current || guardando || trabajando) return;
+    const preparados = [...formularios.current.values()].map(ref => ref.current());
+    if (preparados.some(item => item.error)) {
+      toast.error('Revisa el enlace de video indicado antes de guardar.');
+      return;
+    }
+    const pendientes = preparados.filter(item => Object.keys(item.campos).length > 0);
+    if (!pendientes.length) {
+      toast('No hay resultados pendientes de guardar.');
+      return;
+    }
+    loteActivo.current = true;
+    setGuardandoLote(true);
+    let guardados = 0;
+    try {
+      for (const item of pendientes) {
+        const error = await onGuardarDetalle(item.detalleId, item.campos);
+        if (error) {
+          toast.error(`Se guardaron ${guardados} de ${pendientes.length}. El dispositivo #${item.detalleId} no se guardó: ${error.message}`);
+          return;
+        }
+        guardados++;
+      }
+      toast.success(`Se guardaron ${guardados} resultado(s).`);
+    } catch (error) {
+      toast.error(`Se guardaron ${guardados} de ${pendientes.length}. ${error.message || 'Inténtalo nuevamente.'}`);
+    } finally {
+      loteActivo.current = false;
+      setGuardandoLote(false);
+    }
+  };
   const permitidas = [
     ['Editar la cabecera', acciones.puede_editar],
     ['Cerrar', acciones.puede_cerrar],
@@ -924,14 +990,14 @@ export const DetalleOrden = ({
   return (
     <>
       <div className="ti-bar">
-        <button type="button" className="ti-btn" onClick={onVolver}>
+        <button type="button" className="ti-btn" disabled={guardandoLote} onClick={onVolver}>
           ← Volver {soloLectura ? 'al historial' : 'a órdenes'}
         </button>
         <Chip estado={orden.estado} />
         <span className="ti-mono ti-smalltxt">
           {codigoOrden(orden)}
         </span>
-        {!soloLectura && <ConstanciaOrden programa={programa} orden={orden} bloqueado={guardando} />}
+        {!soloLectura && <ConstanciaOrden programa={programa} orden={orden} bloqueado={guardando || guardandoLote} />}
         {onVerEnPrograma && (
           <button type="button" className="ti-btn small" onClick={onVerEnPrograma}>
             Ver en el programa
@@ -1027,7 +1093,7 @@ export const DetalleOrden = ({
             {editable ? (
               <FormularioCabecera
                 orden={orden}
-                guardando={guardando}
+                guardando={guardando || guardandoLote}
                 onGuardar={onGuardarCabecera}
               />
             ) : (
@@ -1112,7 +1178,7 @@ export const DetalleOrden = ({
       </div>
 
       {/* EQUIPOS · un detalle por equipo previsto */}
-      <ChecklistOrden key={`checklist-${orden.id}-${orden.estado}`} programaId={programaId} orden={orden} bloqueado={guardando || trabajando}>
+      <ChecklistOrden key={`checklist-${orden.id}-${orden.estado}`} programaId={programaId} orden={orden} bloqueado={guardando || trabajando || guardandoLote} onResultado={onResultadoChecklist}>
         <div className="ti-card" style={{ marginTop: 12 }}>
           <h3>
             Equipos de la orden
@@ -1122,6 +1188,11 @@ export const DetalleOrden = ({
           </h3>
 
           <div className="ti-pad">
+            {editable && detalles.length > 0 && <div className="ti-bar">
+              <button type="button" className="ti-btn primary" disabled={guardando || trabajando || guardandoLote} onClick={guardarTodos}>
+                {guardandoLote ? 'Guardando resultados…' : 'Guardar todos los resultados'}
+              </button>
+            </div>}
             {detalles.length === 0 ? (
               <div className="ti-empty">
                 No se encontraron equipos en esta orden. Vuelve a cargarla o contacta al área de TI.
@@ -1158,8 +1229,9 @@ export const DetalleOrden = ({
                             key={`${d.id}-${d.updated_at ?? ''}`}
                             detalle={d}
                             estados={estadosDetalle}
-                            guardando={guardando}
+                            guardando={guardando || guardandoLote}
                             onGuardar={onGuardarDetalle}
+                            registrarFormulario={registrarFormulario}
                           />
                         ) : (
                           <>
@@ -1189,13 +1261,19 @@ export const DetalleOrden = ({
         </div>
 
       </ChecklistOrden>
-      <EvidenciasOrden programaId={programaId} orden={orden} bloqueado={guardando} />
+      <DesviacionOrden
+  programaId={programaId}
+  orden={orden}
+  editable={editable}
+  bloqueado={guardando || guardandoLote}
+/>
+      <EvidenciasOrden programaId={programaId} orden={orden} bloqueado={guardando || guardandoLote} />
 
       {!soloLectura && <AuditoriaOrden key={orden.id} programaId={programaId} orden={orden} />}
 
       {/* ACCIONES · las tres capacidades que publica el backend, ya conectadas.
           La condición de cada botón es su propio flag: nunca un estado deducido aquí. */}
-      {!soloLectura && <div className="ti-card" style={{ marginTop: 12 }}>
+      {!soloLectura && !soloConsulta && <div className="ti-card" style={{ marginTop: 12 }}>
         <h3>
           Acciones
           <span className="ti-right ti-smalltxt">
@@ -1228,7 +1306,7 @@ export const DetalleOrden = ({
             <button
               type="button"
               className="ti-btn good"
-              disabled={trabajando || !acciones.puede_cerrar}
+              disabled={guardandoLote || trabajando || !acciones.puede_cerrar}
               title={
                 acciones.puede_cerrar
                   ? 'Registrar el cierre de la orden'
@@ -1242,7 +1320,7 @@ export const DetalleOrden = ({
             <button
               type="button"
               className="ti-btn danger"
-              disabled={trabajando || !acciones.puede_anular}
+              disabled={guardandoLote || trabajando || !acciones.puede_anular}
               title={
                 acciones.puede_anular
                   ? 'Conserva la orden con su motivo; no la borra'
@@ -1279,6 +1357,7 @@ export const DetalleOrden = ({
 // ---------------------------------------------------------------------------
 export function OrdenesTiPr01({
   destino = null,
+  soloConsulta = false,
   onDestinoConsumido,
   onVolverAPrograma
 }) {
@@ -1503,6 +1582,25 @@ export function OrdenesTiPr01({
     'Resultado del equipo guardado'
   );
 
+  const actualizarResultadoChecklist = detalle => {
+    const actualizar = orden => {
+      if (!orden?.detalles?.items) return orden;
+      return {
+        ...orden,
+        detalles: {
+          ...orden.detalles,
+          items: orden.detalles.items.map(item =>
+            String(item.id) === String(detalle.id)
+              ? { ...item, estado: detalle.estado, nivel_completado: detalle.nivel_completado }
+              : item
+          )
+        }
+      };
+    };
+    setAbierta(actualizar);
+    setOrdenes(prev => prev.map(orden => orden.id === abierta?.id ? actualizar(orden) : orden));
+  };
+
   // ------------------------------------------------------------------ F2.3
   // El cierre devuelve la orden ya CERRADA mas estado_programacion, ciclos_afectados y
   // visita_resultado: es la respuesta la que dicta el nuevo estado, no una suposicion. Al
@@ -1647,6 +1745,7 @@ export function OrdenesTiPr01({
     return (
       <div className="ti">
         <DetalleOrden
+          soloConsulta={soloConsulta}
           programa={programa}
           programaId={programa.id}
           orden={abierta}
@@ -1657,6 +1756,7 @@ export function OrdenesTiPr01({
           resultadoCierre={resultadoCierre}
           onGuardarCabecera={guardarCabecera}
           onGuardarDetalle={guardarDetalle}
+          onResultadoChecklist={actualizarResultadoChecklist}
           onPedirCierre={() => setModal('cerrar')}
           onPedirAnulacion={() => setModal('anular')}
           onVolver={cerrarDetalle}
