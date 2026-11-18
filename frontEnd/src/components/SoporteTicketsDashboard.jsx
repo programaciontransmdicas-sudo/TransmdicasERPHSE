@@ -14,6 +14,26 @@ import {
   ReportesPulserasPanel
 } from './ReportesPulserasPanel';
 
+const formatFechaLlegada = valor => {
+  const partes = /^(\d{4})-(\d{2})-(\d{2})/.exec(
+    String(valor || '')
+  );
+
+  return partes
+    ? `${partes[3]}/${partes[2]}/${partes[1]}`
+    : 'No registrada';
+};
+
+const formatHoraLlegada = valor => {
+  const partes = /^(\d{2}):(\d{2})/.exec(
+    String(valor || '')
+  );
+
+  return partes
+    ? `${partes[1]}:${partes[2]}`
+    : 'No registrada';
+};
+
 export function SoporteTicketsDashboard({
   permisos,
   usuario,
@@ -49,6 +69,7 @@ export function SoporteTicketsDashboard({
     setPulseraClientesOperaciones
   ] = useState([]);
   const [pulseraPersonal, setPulseraPersonal] = useState([]);
+  const [solicitantePulsera, setSolicitantePulsera] = useState(null);
   const [loadingPulseraOptions, setLoadingPulseraOptions] = useState(false);
   const [showDniSuggestions, setShowDniSuggestions] = useState(false);
 
@@ -121,6 +142,7 @@ export function SoporteTicketsDashboard({
     let vigente = true;
 
     setLoadingPulseraOptions(true);
+    setSolicitantePulsera(null);
 
     api.getOpcionesPulseras()
       .then(data => {
@@ -135,6 +157,7 @@ export function SoporteTicketsDashboard({
         setPulseraPersonal(
           Array.isArray(data?.personal) ? data.personal : []
         );
+        setSolicitantePulsera(data?.solicitante || null);
       })
       .catch(error => {
         if (vigente) {
@@ -579,7 +602,7 @@ export function SoporteTicketsDashboard({
     }
 
     const solicitantePersonaId = Number(
-      pulseraForm.solicitante_persona_id
+      solicitantePulsera?.id
     );
 
     const receptorPersonaId = Number(
@@ -593,8 +616,11 @@ export function SoporteTicketsDashboard({
 
     if (
       !Number.isInteger(solicitantePersonaId) ||
+      solicitantePersonaId <= 0 ||
       !Number.isInteger(receptorPersonaId) ||
+      receptorPersonaId <= 0 ||
       !Number.isInteger(clienteOperacionId) ||
+      clienteOperacionId <= 0 ||
       !motivoRenovacion
     ) {
       return toast.error('Complete todos los campos del reporte');
@@ -620,7 +646,7 @@ export function SoporteTicketsDashboard({
 
       await api.createPulsera(
         {
-          solicitante_persona_id: solicitantePersonaId,
+
           receptor_persona_id: receptorPersonaId,
           cliente_operacion_id: clienteOperacionId,
           motivo_renovacion: motivoRenovacion,
@@ -713,39 +739,34 @@ export function SoporteTicketsDashboard({
           <div>
             <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '600' }}>Nombre del Solicitante</label>
 
-            <select
-              value={pulseraForm.solicitante_persona_id}
-              onChange={event =>
-                setPulseraForm({
-                  ...pulseraForm,
-                  solicitante_persona_id: event.target.value
-                })
+            <input
+              type="text"
+              readOnly
+              aria-label="Solicitante de la cuenta"
+              value={
+                loadingPulseraOptions
+                  ? 'Cargando solicitante...'
+                  : solicitantePulsera
+                    ? `${solicitantePulsera.nombre_completo} - DNI: ${solicitantePulsera.dni || 'No registrado'
+                    }`
+                    : 'Cuenta sin persona activa vinculada'
               }
-              required
-              disabled={loadingPulseraOptions}
               style={{
                 width: '100%',
                 padding: '0.75rem',
                 borderRadius: '0.5rem',
                 backgroundColor: 'var(--bg-secondary)',
                 border: '1px solid var(--border-color)',
-                color: 'var(--text-primary)',
-                outlineColor: 'var(--accent-color)'
+                color: 'var(--text-primary)'
               }}
-            >
-              <option value="">
-                {loadingPulseraOptions
-                  ? 'Cargando personal...'
-                  : 'Seleccione una persona'}
-              </option>
+            />
 
-              {pulseraPersonal.map(persona => (
-                <option key={persona.id} value={persona.id}>
-                  {persona.nombre_completo}
-                  {persona.dni ? ` - ${persona.dni}` : ''}
-                </option>
-              ))}
-            </select>
+            {!loadingPulseraOptions && !solicitantePulsera && (
+              <p role="alert">
+                Solicita al administrador que vincule tu cuenta
+                con una persona activa.
+              </p>
+            )}
           </div>
           <div>
             <label
@@ -1618,7 +1639,7 @@ export function SoporteTicketsDashboard({
               <button onClick={() => setStatusFilter('En Proceso')} style={{ padding: '0.5rem 1rem', borderRadius: '2rem', border: 'none', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem', backgroundColor: statusFilter === 'En Proceso' ? '#db8b0b' : '#fff6e4', color: statusFilter === 'En Proceso' ? 'white' : '#db8b0b', transition: 'all 0.2s' }}>
                 <span className="ui-status-dot is-warning" /> En Proceso ({enProceso.length})
               </button>
-              
+
             </div>
 
             <button onClick={fetchTickets} className="ui-icon-button ui-refresh-button" title="Recargar">
@@ -1972,6 +1993,49 @@ export function SoporteTicketsDashboard({
                   <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Solicitante: </span>
                   <span style={{ color: 'var(--text-primary)', fontWeight: '700' }}>
                     {selectedTicket.nombre_completo || 'No especificado'}
+                  </span>
+                </div>
+                <div style={{ marginBottom: '1rem' }}>
+                  <span
+                    style={{
+                      color: 'var(--text-secondary)',
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    Fecha de llegada de la unidad:{' '}
+                  </span>
+
+                  <span
+                    style={{
+                      color: 'var(--text-primary)',
+                      fontWeight: '700'
+                    }}
+                  >
+                    {formatFechaLlegada(
+                      selectedTicket.fecha_llegada_unidad
+                    )}
+                  </span>
+                </div>
+
+                <div style={{ marginBottom: '1rem' }}>
+                  <span
+                    style={{
+                      color: 'var(--text-secondary)',
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    Hora de llegada de la unidad:{' '}
+                  </span>
+
+                  <span
+                    style={{
+                      color: 'var(--text-primary)',
+                      fontWeight: '700'
+                    }}
+                  >
+                    {formatHoraLlegada(
+                      selectedTicket.hora_llegada_unidad
+                    )}
                   </span>
                 </div>
                 {selectedTicket.implemento && (

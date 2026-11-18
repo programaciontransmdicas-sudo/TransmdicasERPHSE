@@ -3,7 +3,7 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-
+import seguridadRoutes from "./modules/seguridad/routes.js";
 import personalRoutes from './modules/personal/routes.js';
 import vehiculosRoutes, {
   maestroRoutes
@@ -211,6 +211,10 @@ app.use(
 app.use(
   '/api/programas-mantenimiento',
   programasMantenimientoRoutes
+);
+app.use(
+  "/api/seguridad-patrimonial",
+  seguridadRoutes,
 );
 
 app.use(notFound);

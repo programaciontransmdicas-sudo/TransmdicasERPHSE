@@ -69,7 +69,7 @@ function DialogoEvidencia({ titulo, children, onCerrar, ocupado }) {
     const teclado = event => {
       if (event.key === 'Escape' && !busy.current) cerrar.current();
       if (event.key !== 'Tab') return;
-      const botones = [...nodo.querySelectorAll('button:not(:disabled), textarea:not(:disabled), [tabindex="0"]')];
+      const botones = [...nodo.querySelectorAll('button:not(:disabled), textarea:not(:disabled), input:not(:disabled), [tabindex="0"]')];
       if (!botones.length) { event.preventDefault(); return; }
       const primero = botones[0];
       const ultimo = botones[botones.length - 1];
@@ -99,6 +99,9 @@ export function EvidenciasOrden({ programaId, orden, bloqueado }) {
   const [error, setError] = useState(null);
   const [ampliada, setAmpliada] = useState(null);
   const [retiro, setRetiro] = useState(null);
+  const [reemplazo, setReemplazo] = useState(null);
+  const [archivoReemplazo, setArchivoReemplazo] = useState(null);
+  const [errorReemplazo, setErrorReemplazo] = useState(null);
   const [motivo, setMotivo] = useState('');
   const [errorRetiro, setErrorRetiro] = useState(null);
   const [mensaje, setMensaje] = useState('');
@@ -234,6 +237,7 @@ export function EvidenciasOrden({ programaId, orden, bloqueado }) {
                 {apartado.evidencias.map(evidencia => <figure key={evidencia.id}>
                   <ImagenEvidencia contexto={contexto} evidencia={evidencia} onAbrir={() => setAmpliada(evidencia)} />
                   <figcaption>{evidencia.subida_por?.nombre || evidencia.subida_por?.username || 'Fotografía registrada'}</figcaption>
+                  {rol === 'admin' && estadoOrden === 'CERRADA' && <button type="button" className="ti-btn small" disabled={ocupado || bloqueado} onClick={() => { setReemplazo(evidencia); setArchivoReemplazo(null); setMotivo(''); setErrorReemplazo(null); }}>Reemplazar fotografía</button>}
                   {puedeRetirar && <button type="button" className="ti-btn small" disabled={ocupado || bloqueado || ultimaProtegida}
                     title={ultimaProtegida ? MENSAJES.ULTIMA_EVIDENCIA_OBLIGATORIA : undefined}
                     onClick={() => { setRetiro(evidencia); setMotivo(''); setErrorRetiro(null); }}>Retirar</button>}
@@ -270,6 +274,24 @@ export function EvidenciasOrden({ programaId, orden, bloqueado }) {
     </div>
     {ampliada && <DialogoEvidencia titulo="Ver evidencia" onCerrar={() => setAmpliada(null)}>
       <ImagenEvidencia key={ampliada.id} contexto={contexto} evidencia={ampliada} ancho={960} />
+    </DialogoEvidencia>}
+    {reemplazo && <DialogoEvidencia titulo="Reemplazar fotografía" ocupado={ocupado} onCerrar={() => setReemplazo(null)}>
+      <p>La fotografía anterior se conservará en el historial de auditoría.</p>
+      <label className="ti-field"><span>Fotografía correcta (JPG, PNG o WEBP; máximo 10 MB)</span>
+        <input type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" disabled={ocupado} onChange={e => setArchivoReemplazo(e.target.files?.[0] || null)} />
+      </label>
+      <label className="ti-field"><span>Motivo del reemplazo</span><textarea rows={3} maxLength={2000} value={motivo} disabled={ocupado} onChange={e => setMotivo(e.target.value)} /></label>
+      <ErrorEvidencia error={errorReemplazo} />
+      <button type="button" className="ti-btn primary" disabled={ocupado || bloqueado || !archivoReemplazo || !motivo.trim()} onClick={async () => {
+        if (candado.current || bloqueado) return;
+        candado.current = true; setOcupado(true); setErrorReemplazo(null); setMensaje('');
+        try {
+          await apiTiPr01.reemplazarEvidenciaOrden(...contexto, reemplazo.id, archivoReemplazo, motivo.trim());
+          if (montado.current) { setReemplazo(null); setMensaje('Fotografía reemplazada.');
+            try { await cargar(); } catch (e) { setError(e); } }
+        } catch (e) { if (montado.current) setErrorReemplazo(e); }
+        finally { candado.current = false; if (montado.current) setOcupado(false); }
+      }}>{ocupado ? 'Guardando…' : 'Confirmar reemplazo'}</button>
     </DialogoEvidencia>}
     {retiro && <DialogoEvidencia titulo="Retirar fotografía" ocupado={ocupado} onCerrar={() => setRetiro(null)}>
       <p>La fotografía dejará de aparecer en la galería y conservará su registro de auditoría.</p>

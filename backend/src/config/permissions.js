@@ -8,7 +8,8 @@ export const ROLE_MODULES = [
   'devoluciones',
   'mantenimiento',
   'reportes',
-  'usuarios'
+  'usuarios',
+  'seguridad'
 ];
 
 export const ROLE_PERMISSIONS = {

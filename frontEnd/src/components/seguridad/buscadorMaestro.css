@@ -1,0 +1,29 @@
+.sp-search-field { min-width: 0; }
+.sp-search-label { font-weight: 600; }
+.sp-search-box { position: relative; min-width: 0; }
+.sp-search-box:focus-within { z-index: 30; }
+.sp-form-dialog .sp-search-box .sp-search-input {
+  box-sizing: border-box; display: block; width: 100%; min-width: 0; max-width: 100%;
+  padding-left: 37px;
+}
+.sp-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-secondary, #66758d); pointer-events: none; }
+.sp-suggestions {
+  position: absolute; z-index: 31; top: calc(100% + 6px); left: 0; right: 0;
+  overflow: hidden; box-sizing: border-box; min-width: 0;
+  border: 1px solid var(--border-color, #dce3ee); border-radius: 10px;
+  background: var(--card-bg, #fff); color: var(--text-primary, #101b33);
+  box-shadow: 0 12px 30px rgba(16, 27, 51, .16), 0 2px 6px rgba(16, 27, 51, .06);
+}
+.sp-suggestions-heading { padding: 11px 13px 7px; color: var(--text-secondary, #718096); font-size: 10px; font-weight: 700; letter-spacing: .04em; }
+.sp-suggestions-list { list-style: none; padding: 0 5px 5px; margin: 0; max-height: 225px; overflow-y: auto; }
+.sp-suggestion {
+  box-sizing: border-box; display: flex; align-items: flex-start; gap: 10px; width: 100%; min-width: 0;
+  padding: 9px 8px; border: 0; border-radius: 7px; background: transparent;
+  color: inherit; font: inherit; text-align: left; white-space: normal; cursor: pointer;
+}
+.sp-suggestion:hover, .sp-suggestion:focus-visible { background: var(--surface-soft, #f0f4ff); outline: 2px solid var(--focus-ring, #9db9ff); outline-offset: -2px; }
+.sp-suggestion-icon { display: inline-flex; flex: 0 0 31px; width: 31px; height: 31px; align-items: center; justify-content: center; border-radius: 8px; color: #2458e8; background: #edf2ff; }
+.sp-suggestion-copy { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sp-suggestion-copy strong { font-size: 12px; line-height: 1.35; font-weight: 650; overflow-wrap: anywhere; }
+.sp-suggestion-meta { color: var(--text-secondary, #65748b); font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
+.sp-suggestions-message { margin: 0; padding: 12px 13px; color: var(--text-secondary, #65748b); font-size: 11px; line-height: 1.5; }

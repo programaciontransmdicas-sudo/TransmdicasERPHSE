@@ -676,7 +676,11 @@ export const opcionesReportePulseras =
           obtenerClientesOperacionesUnicas(
             vehiculos
           ),
-        personal
+        personal,
+        solicitante: personal.find(
+          persona =>
+            Number(persona.id)=== Number(contexto.personaId)
+        ) || null
       });
 
     } catch (error) {
@@ -704,11 +708,7 @@ export const opcionesReportePulseras =
 
 export const crearReportePulsera =
   async (req, res) => {
-
-    const solicitantePersonaId =
-      Number(
-        req.body?.solicitante_persona_id
-      );
+  
 
     const receptorPersonaId =
       Number(
@@ -734,18 +734,6 @@ export const crearReportePulsera =
       String(
         req.body?.hora_llegada_personal || ''
       ).trim();
-
-    if (
-      !Number.isInteger(
-        solicitantePersonaId
-      ) ||
-      solicitantePersonaId <= 0
-    ) {
-      return res.status(400).json({
-        error:
-          'Debe seleccionar un solicitante válido'
-      });
-    }
 
     if (
       !Number.isInteger(
@@ -821,7 +809,20 @@ export const crearReportePulsera =
               'No tienes permiso para registrar reportes de pulseras'
           });
       }
+      // El solicitante corresponde a la persona vinculada
+      // con la cuenta que inicio sesion 
+      const solicitantePersonaId = Number(contexto.personaId);
 
+      if(
+        !Number.isInteger(solicitantePersonaId) ||
+        solicitantePersonaId <= 0
+      ){
+        return res.status(400).json({
+          error:
+            'Tu cuenta no esta vinulada a una persona. ' +
+            'Solicita al administrador que vincule tus datos.'
+        });
+      }
       const [
         solicitante,
         receptor,
@@ -849,7 +850,7 @@ export const crearReportePulsera =
       if (!solicitante) {
         return res.status(400).json({
           error:
-            'El solicitante no existe o está inactivo'
+            'La persona vinculada a tu cuenta no existe o está inactiva'
         });
       }
 

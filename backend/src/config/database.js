@@ -34,10 +34,18 @@ export const pool = new Pool({
   connectionString: erpDatabaseUrl.toString(),
   connectionTimeoutMillis: 10000
 });
-
+// Atiende errores de cada conexión, incluso mientras está en uso.
+pool.on('connect', client => {
+  client.on('error', error => {
+    console.error(
+      'Se interrumpió una conexión PostgreSQL:',
+      error.message
+    );
+  });
+});
 pool.on('error', error => {
   console.error(
-    'Error inesperado en la conexión PostgreSQL:',
-    error
+    'Error en una conexión PostgreSQL inactiva:',
+    error.message
   );
 });

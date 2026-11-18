@@ -22,6 +22,8 @@ export function EntregasTIDashboard({
   const isAdmin = rolUsuario === 'admin' || rolUsuario === 'administrador';
   const canEdit = permisos?.editar === true;
   const canBulkUpload = isAdmin;
+  const [tiposEquipo, setTiposEquipo] = useState([]);
+  const [errorTipos, setErrorTipos] = useState('');
   const canCrearPersonal =
     isAdmin || usuario?.permisos?.personal?.editar === true;
   const [reporteVinculado, setReporteVinculado] = useState(null);
@@ -172,10 +174,16 @@ export function EntregasTIDashboard({
     }
   };
 
+  const loadTiposEquipo = async () => {
+    try { const data = await api.listarTiposEquipo(); setTiposEquipo(data.tipos || []); setErrorTipos(''); }
+    catch (error) { setTiposEquipo([]); setErrorTipos(error.message || 'No se pudieron cargar los dispositivos.'); }
+  };
+
   useEffect(() => {
     loadData();
     loadPersonal();
     loadOpciones();
+    loadTiposEquipo();
   }, []);
 
   const handleFileUpload = async (e) => {
@@ -539,6 +547,8 @@ export function EntregasTIDashboard({
         </div>
       </div>
 
+      {errorTipos && <p role="alert" style={{color:'#b42318'}}>{errorTipos} <button type="button" onClick={loadTiposEquipo}>Reintentar</button></p>}
+
       <div className="card" style={{ marginBottom: '1.5rem', padding: '1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 250px', position: 'relative' }}>
           <span className="ui-search-icon"><UiIcon name="search" /></span>
@@ -563,12 +573,11 @@ export function EntregasTIDashboard({
             style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-color)', color: 'var(--text-primary)' }}
           >
             <option value="">Todas las categorías</option>
-            <option value="PULSERA">Solo Pulseras</option>
-            <option value="LAPTOP">Laptops</option>
-            <option value="CELULAR">Celulares</option>
-            <option value="TABLET">Tablets</option>
-            <option value="COOLER">Cooler</option>
-            <option value="MONITOR">Monitores</option>
+            {Array.from(new Set([
+              ...tiposEquipo.map(t => t.valor),
+              ...entregas.map(e => String(e.equipo_tipo || '').trim().toUpperCase()).filter(Boolean),
+              'CELULAR'
+            ])).sort((a, b) => a.localeCompare(b, 'es')).map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}
           </select>
         </div>
       </div>
@@ -959,7 +968,11 @@ export function EntregasTIDashboard({
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem' }}>Tipo Equipo</label>
-                    <select name="equipo_tipo" value={formData.equipo_tipo} onChange={handleFormChange} required style={{ width: '100%', padding: '0.5rem' }}><option value="">Seleccione un equipo</option><option value="PULSERA">PULSERA</option><option value="LAPTOP">LAPTOP</option><option value="CARGADOR">CARGADOR</option><option value="MOUSE">MOUSE</option><option value="CORREA DE PULSERA">CORREA DE PULSERA</option><option value="MONITOR">MONITOR</option><option value="TABLET">TABLET</option><option value="MOUSE INALAMBRICO">MOUSE INALAMBRICO</option><option value="COOLER">COOLER</option></select>
+                    <select name="equipo_tipo" value={formData.equipo_tipo} onChange={handleFormChange} required disabled={!!errorTipos} style={{ width: '100%', padding: '0.5rem' }}>
+                      <option value="">Seleccione un equipo</option>
+                      {formData.equipo_tipo && !tiposEquipo.some(t => t.valor === formData.equipo_tipo) && <option value={formData.equipo_tipo}>{formData.equipo_tipo} (histórico o inactivo)</option>}
+                      {tiposEquipo.map(t => <option key={t.id} value={t.valor}>{t.valor}</option>)}
+                    </select>
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem' }}>Condición</label>

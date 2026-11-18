@@ -633,8 +633,10 @@ export const obtenerTickets =
   }) => {
     const result = await pool.query(
       `SELECT
-         t.*,
-         p.nombre_completo,
+          t.*,
+          t.fecha_llegada_unidad::text AS fecha_llegada_unidad,
+          t.hora_llegada_unidad::text AS hora_llegada_unidad,
+          p.nombre_completo,
          p.dni,
          v.cliente,
          v.operacion,
@@ -669,8 +671,10 @@ export const obtenerTicketPorId =
   }) => {
     const result = await pool.query(
       `SELECT
-         t.*,
-         p.nombre_completo,
+        t.*,
+        t.fecha_llegada_unidad::text AS fecha_llegada_unidad,
+        t.hora_llegada_unidad::text AS hora_llegada_unidad,
+        p.nombre_completo,
          p.dni,
          v.cliente,
          v.operacion,

@@ -31,6 +31,7 @@ import {
   bloquearDetalleParaEvidencia,
   contarEvidenciasActivas,
   insertarEvidencia,
+  reemplazarEvidenciaCerrada,
   obtenerEvidenciasActivasDeOrden,
   obtenerEvidenciaDeOrden,
   obtenerEvidenciaParaRetiro,
@@ -57,6 +58,7 @@ import {
   exigirVisita,
   resolverTecnicoDelCierre,
   exigirPuedeSubirEvidencia,
+  exigirPuedeReemplazarEvidencia,
   exigirFamiliaConEvidencia,
   exigirHuecoParaEvidencia,
   exigirPuedeRetirarEvidencia,
@@ -1658,3 +1660,53 @@ export const retirarEvidenciaDeOrden = manejar(
       'Error al retirar la evidencia'
   }
 );
+
+// El archivo se sube primero; ante cualquier fallo posterior se elimina el asset nuevo.
+export const reemplazarEvidenciaDeOrden = manejar(async (req, res) => {
+  const { programaId, programacionId } = await idsDe(req);
+  const otId = normalizarId('otId', req.params.otId);
+  const evidenciaId = normalizarId('evidenciaId', req.params.evidenciaId);
+  const { motivo } = prepararRetiroEvidencia({ motivo: req.body?.motivo });
+  if (motivo.length > 2000) throw new ValidationError('El motivo admite hasta 2000 caracteres.');
+  const orden = await obtenerOrdenPorId(programaId, programacionId, otId);
+  if (!orden) throw noEncontrado(NO_ENCONTRADA_ORDEN);
+  exigirPuedeReemplazarEvidencia(orden, req.user);
+  const previa = await obtenerEvidenciaDeOrden(otId, evidenciaId);
+  if (!previa) throw noEncontrado('Evidencia no encontrada en esta orden de trabajo');
+  if (previa.estado !== 'ACTIVA') throw new ValidationError('La fotografía ya fue retirada.', 409);
+  validarArchivoEvidencia(req.file, LIMITE_EVIDENCIA_TI_BYTES);
+  const subida = await subirEvidenciaAutenticada(req.file.buffer);
+  try {
+    const { cuerpo } = await editandoLaOrden(req, async ({ client, orden: actual, otId: ordenId }) => {
+      const detalle = await bloquearDetalleParaEvidencia(ordenId, previa.detalle_id, client);
+      if (!detalle) throw noEncontrado('Apartado no encontrado en esta orden de trabajo');
+      exigirFamiliaConEvidencia(detalle);
+      const evidencia = await obtenerEvidenciaParaRetiro(ordenId, evidenciaId, client);
+      if (!evidencia || evidencia.estado !== 'ACTIVA' || evidencia.detalle_id !== detalle.id) {
+        throw new ValidationError('La fotografía ya cambió. Actualice la galería.', 409);
+      }
+      const nuevaId = await reemplazarEvidenciaCerrada({
+        otId: ordenId, evidenciaId, usuarioId: req.user.id, motivo, detalleId: detalle.id,
+        publicId: subida.public_id, formato: subida.formato, bytes: subida.bytes,
+        ancho: subida.ancho, alto: subida.alto
+      }, client);
+      return {
+        escribio: true, tabla: 'ordenes_trabajo_evidencias',
+        antes: { evidencia_id: evidenciaId, detalle_id: detalle.id, estado: 'ACTIVA' },
+        despues: { evidencia_retirada_id: evidenciaId, evidencia_nueva_id: nuevaId,
+          detalle_id: detalle.id, motivo },
+        accion: `Reemplazó evidencia ${evidenciaId} por ${nuevaId} de la OT ${ordenId}. Motivo: ${motivo}`,
+        extra: { evidencia_retirada_id: evidenciaId, evidencia_nueva_id: nuevaId }
+      };
+    }, { exigir: actual => exigirPuedeReemplazarEvidencia(actual, req.user) });
+    return res.status(201).json(cuerpo);
+  } catch (error) {
+    try {
+      const destruida = await destruirEvidenciaAutenticada(subida.public_id);
+      if (!destruida) console.error('[TI_PR_01_EVIDENCIA_HUERFANA]', subida.public_id);
+    } catch (limpieza) {
+      console.error('[TI_PR_01_EVIDENCIA_HUERFANA]', subida.public_id, limpieza.message);
+    }
+    throw error;
+  }
+}, { ...ERRORES, mensajeGenerico: 'No se pudo reemplazar la fotografía' });

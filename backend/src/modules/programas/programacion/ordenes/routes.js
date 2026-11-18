@@ -1,5 +1,6 @@
 import { listarChecklistOrden, editarActividadChecklist } from './checklist.js';
 import { listarAuditoriaOrden } from './auditoria.js';
+import { requireAdmin } from '../../../../middlewares/auth.js';
 
 import {
   Router
@@ -16,7 +17,8 @@ import {
   subirEvidencia,
   listarEvidencias,
   obtenerImagenEvidencia,
-  retirarEvidenciaDeOrden
+  retirarEvidenciaDeOrden,
+  reemplazarEvidenciaDeOrden
 } from './controller.js';
 
 import {
@@ -160,6 +162,13 @@ router.get(
 router.patch(
   '/:otId/evidencias/:evidenciaId/retirar',
   retirarEvidenciaDeOrden
+);
+
+router.post(
+  '/:otId/evidencias/:evidenciaId/reemplazar',
+  requireAdmin,
+  receiveEvidenciaOrden,
+  reemplazarEvidenciaDeOrden
 );
 
 export default router;

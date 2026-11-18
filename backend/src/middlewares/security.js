@@ -67,7 +67,11 @@ const PERMISSION_ROUTES = [
     // dominio de negocio y ya existe en los permisos de usuario.
     pattern: /^\/api\/programas-mantenimiento(?:\/|$)/,
     modules: ['mantenimiento']
-  }
+  },
+  {
+  pattern: /^\/api\/seguridad-patrimonial(?:\/|$)/,
+  modules: ['seguridad']
+},
 ];
 
 export const authenticateRequest = (

@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { pool } from '../../config/database.js';
+import { crearRutasTipos } from './configuracionTipos.js';
 import {
   requireAdmin,
   hasPermiso
@@ -24,6 +26,7 @@ import {
 
 export const legacyEntregasRoutes = Router();
 export const entregasRoutes = Router();
+entregasRoutes.use('/tipos-equipo', crearRutasTipos(pool));
 
 // ==========================================
 // RUTAS LEGACY /entregas

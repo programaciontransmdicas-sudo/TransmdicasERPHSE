@@ -441,6 +441,14 @@ imagenDesviacion: async (
     );
   },
 
+  reemplazarEvidenciaOrden: (programaId, programacionId, otId, evidenciaId, archivo, motivo) => {
+    const body = new FormData();
+    body.append('imagen', archivo);
+    body.append('motivo', motivo);
+    return pedirTi(`/${programaId}/programacion/${programacionId}/ordenes-trabajo/${otId}/evidencias/${evidenciaId}/reemplazar`,
+      { method: 'POST', body });
+  },
+
   retirarEvidenciaOrden: (programaId, programacionId, otId, evidenciaId, motivo) =>
     pedirTi(
       `/${programaId}/programacion/${programacionId}/ordenes-trabajo/${otId}/evidencias/${evidenciaId}/retirar`,
@@ -1142,6 +1150,24 @@ export const api = {
     return data.persona;
   },
   // === ENTREGAS ===
+  listarTiposEquipo: async (todos = false) => {
+    const response = await fetchWithAuth(`${BASE_URL}/api/entregas/tipos-equipo${todos ? '?todos=1' : ''}`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'No se pudo cargar el catálogo.');
+    return data;
+  },
+  crearTipoEquipo: async valor => {
+    const response = await fetchWithAuth(`${BASE_URL}/api/entregas/tipos-equipo`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ valor }) });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'No se pudo agregar el dispositivo.');
+    return data;
+  },
+  cambiarEstadoTipoEquipo: async (id, activo) => {
+    const response = await fetchWithAuth(`${BASE_URL}/api/entregas/tipos-equipo/${encodeURIComponent(id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ activo }) });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'No se pudo actualizar el dispositivo.');
+    return data;
+  },
   getOpcionesEntregas: async () => {
     const response = await fetchWithAuth(
       `${BASE_URL}/api/entregas/opciones`
@@ -1387,3 +1413,35 @@ deleteSolicitudDescargaVideos: async id => {
   return resultado;
 },
 };
+export const apiSeguridad = {
+  async resumen(base = "", signal) {
+    const parametros = new URLSearchParams();
+
+    if (base) {
+      parametros.set("base", base);
+    }
+
+    const consulta = parametros.toString();
+
+    const respuesta = await fetchWithAuth(
+      `${BASE_API_URL}/api/seguridad-patrimonial/resumen${
+        consulta ? `?${consulta}` : ""
+      }`,
+      { signal },
+    );
+
+    const datos = await respuesta
+      .json()
+      .catch(() => ({}));
+
+    if (!respuesta.ok) {
+      throw new Error(
+        datos.error ||
+          "No se pudo cargar Seguridad Patrimonial.",
+      );
+    }
+
+    return datos;
+  },
+};
+export { fetchWithAuth };

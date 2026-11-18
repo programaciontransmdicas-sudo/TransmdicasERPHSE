@@ -1381,3 +1381,13 @@ export const validarEnlaceVideoDelEquipo = (detalle, campos) => {
     throw new ValidationError('Solo el equipo Cámaras admite un enlace de video.');
   }
 };
+
+// Sustitución exclusivamente administrativa de una evidencia de OT cerrada.
+export const exigirPuedeReemplazarEvidencia = (orden, usuario) => {
+  if (!esUsuarioAdmin(usuario) || !usuario?.id) {
+    throw new ValidationError('Solo un administrador puede reemplazar fotografías.', 403);
+  }
+  if (orden.estado !== 'CERRADA') {
+    throw new ValidationError('Solo se pueden reemplazar fotografías de una orden cerrada.', 409);
+  }
+};

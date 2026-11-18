@@ -915,3 +915,13 @@ export const obtenerDetallesParaValidarCierre = async (
 
   return result.rows;
 };
+
+// La función de base de datos efectúa el retiro y la inserción en la misma transacción.
+export const reemplazarEvidenciaCerrada = async (datos, cliente = pool) => {
+  const result = await cliente.query(
+    `SELECT public.reemplazar_evidencia_ot_cerrada($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) AS id`,
+    [datos.otId, datos.evidenciaId, datos.usuarioId, datos.motivo, datos.publicId,
+      datos.formato, datos.bytes, datos.ancho, datos.alto, datos.detalleId]
+  );
+  return result.rows[0].id;
+};

@@ -9,6 +9,7 @@ import { Login } from "./components/Login";
 import { MaestroFlotaDashboard } from "./components/MaestroFlotaDashboard";
 import { DirectorioPersonal } from "./components/DirectorioPersonal";
 import { ReportesDashboard } from "./components/ReportesDashboard";
+import { ConfigTiposEntregas } from "./components/ConfigTiposEntregas";
 import { GestionUsuariosDashboard } from "./components/GestionUsuariosDashboard";
 import { Toaster } from "react-hot-toast";
 import "./index.css";
@@ -17,6 +18,9 @@ import { AsistenteERPHSE } from "./components/AsistenteERPHSE";
 import {
   NotificacionesBell
 } from './components/NotificacionesBell';
+import {
+  SeguridadPatrimonial,
+} from "./components/SeguridadPatrimonial";
 
 const APP_ICONS = {
   dashboard: (
@@ -174,6 +178,12 @@ function App() {
   const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(false);
   const [isTiOpen, setIsTiOpen] = useState(true);
   const [isSeguridadOpen, setIsSeguridadOpen] = useState(false);
+  const [seccionSeguridad, setSeccionSeguridad] = useState("resumen");
+  const [gruposSeguridad, setGruposSeguridad] = useState({
+    ingresos: false,
+    bienes: false,
+    operaciones: false,
+  });
   const [isSoporteOpen, setIsSoporteOpen] = useState(false);
   const [isInventarioOpen, setIsInventarioOpen] = useState(false);
   const [isMantenimientoOpen, setIsMantenimientoOpen] = useState(true);
@@ -343,7 +353,9 @@ function App() {
     tickets: "Tickets de soporte",
     mantenimiento: "Mantenimiento técnico",
     reportes: "Reportes gerenciales",
+    configuraciones: "Configuraciones",
     usuarios: "Usuarios y permisos",
+    seguridad: "Seguridad Patrimonial",
   };
 
   const NavItem = ({ tab, icon, label, nested = false }) => (
@@ -375,6 +387,75 @@ function App() {
           </span>
         </>
       )}
+    </button>
+  );
+
+  const gruposMenuSeguridad = [
+    {
+      id: "ingresos",
+      label: "Ingresos y salidas",
+      icon: "truck",
+      items: [
+        { id: "personal", label: "Personal", icon: "user" },
+        { id: "vehiculos", label: "Vehículos", icon: "truck" },
+        { id: "terceros", label: "Terceros", icon: "user" },
+      ],
+    },
+    {
+      id: "bienes",
+      label: "Control de bienes",
+      icon: "inventory",
+      items: [
+        { id: "llaves", label: "Llaves", icon: "shield" },
+        { id: "activos", label: "Activos", icon: "inventory" },
+      ],
+    },
+    {
+      id: "operaciones",
+      label: "Operaciones de seguridad",
+      icon: "shield",
+      items: [
+        { id: "rondas", label: "Rondas", icon: "shield" },
+        { id: "relevos", label: "Relevos", icon: "clipboard" },
+      ],
+    },
+  ];
+
+  const cambiarSeccionSeguridad = (id) => {
+    setSeccionSeguridad(id);
+
+    const grupo = gruposMenuSeguridad.find(g =>
+      g.items.some(item => item.id === id)
+    );
+
+    if (grupo) {
+      setGruposSeguridad(prev => ({
+        ...prev,
+        [grupo.id]: true,
+      }));
+    }
+  };
+
+  const seguridadItem = ({ id, label, icon }) => (
+    <button
+      key={id}
+      type="button"
+      className={`erp-nav-item erp-nav-subitem ${activeTab === "seguridad" && seccionSeguridad === id
+        ? "active"
+        : ""
+        }`}
+      aria-current={
+        activeTab === "seguridad" && seccionSeguridad === id
+          ? "page"
+          : undefined
+      }
+      onClick={() => {
+        cambiarSeccionSeguridad(id);
+        setActiveTab("seguridad");
+      }}
+    >
+      <AppIcon name={icon} />
+      <span>{label}</span>
     </button>
   );
 
@@ -581,21 +662,63 @@ function App() {
             </div>
           )}
 
-          <div className="erp-nav-group erp-area-group erp-security-group">
-            <MenuToggle
-              icon="shield"
-              label="Seguridad"
-              open={isSeguridadOpen}
-              active={false}
-              onClick={() => {
-                if (isDesktopCollapsed) setIsDesktopCollapsed(false);
-                setIsSeguridadOpen(!isSeguridadOpen);
-              }}
-            />
-            {isSeguridadOpen && !isDesktopCollapsed && (
-              <div className="erp-security-empty">Sin módulos registrados</div>
-            )}
-          </div>
+          {isAdmin && (
+            <div className="erp-nav-group erp-area-group erp-security-group">
+              <MenuToggle
+                icon="shield"
+                label="Seguridad Patrimonial"
+                open={isSeguridadOpen}
+                active={activeTab === "seguridad"}
+                onClick={() => {
+                  if (isDesktopCollapsed) {
+                    setIsDesktopCollapsed(false);
+                    setIsSeguridadOpen(true);
+                  } else {
+                    setIsSeguridadOpen(!isSeguridadOpen);
+                  }
+                }}
+              />
+
+              {isSeguridadOpen && !isDesktopCollapsed && (
+                <div className="erp-nav-submenu erp-area-submenu">
+                  {seguridadItem({
+                    id: "resumen",
+                    label: "Resumen",
+                    icon: "dashboard",
+                  })}
+
+                  {gruposMenuSeguridad.map(grupo => (
+                    <div className="erp-nav-group" key={grupo.id}>
+                      <MenuToggle
+                        nested
+                        icon={grupo.icon}
+                        label={grupo.label}
+                        open={gruposSeguridad[grupo.id]}
+                        active={
+                          activeTab === "seguridad" &&
+                          grupo.items.some(
+                            item => item.id === seccionSeguridad
+                          )
+                        }
+                        onClick={() =>
+                          setGruposSeguridad(prev => ({
+                            ...prev,
+                            [grupo.id]: !prev[grupo.id],
+                          }))
+                        }
+                      />
+
+                      {gruposSeguridad[grupo.id] && (
+                        <div className="erp-nav-submenu">
+                          {grupo.items.map(seguridadItem)}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {!isDesktopCollapsed && (
             <p className="erp-nav-section erp-nav-section-spaced">Gestión</p>
@@ -603,6 +726,7 @@ function App() {
           {hasAccess("reportes") && (
             <NavItem tab="reportes" icon="chart" label="Reportes Gerenciales" />
           )}
+          {(isAdmin || String(user?.rol || '').trim().toLowerCase() === 'ti') && <NavItem tab="configuraciones" icon="shield" label="Configuraciones" />}
           {hasAccess("usuarios") && (
             <NavItem tab="usuarios" icon="shield" label="Gestión de Usuarios" />
           )}
@@ -658,6 +782,20 @@ function App() {
         </header>
 
         <main className="main-content-admin">
+          {activeTab === "configuraciones" && (isAdmin || String(user?.rol || '').trim().toLowerCase() === 'ti') && <ConfigTiposEntregas />}
+          {activeTab === "seguridad" && isAdmin && (
+            <SeguridadPatrimonial
+              tipo={seccionSeguridad}
+              onTipoChange={cambiarSeccionSeguridad}
+              puedeEditar={
+                isAdmin ||
+                (
+                  String(user?.rol || "").trim().toLowerCase() !== "gerencia" &&
+                  user?.permisos?.seguridad?.editar === true
+                )
+              }
+            />
+          )}
           {activeTab === "resumen" && hasAccess("resumen") && (
             <ResumenDashboard
               permisos={isAdmin ? { editar: true } : user?.permisos?.resumen}
