@@ -13,6 +13,10 @@ import {
 import {
   ReportesPulserasPanel
 } from './ReportesPulserasPanel';
+import {
+  FiltrosSoporte,
+  useFiltrosSoporte
+} from './reportesSoporte/FiltrosSoporte';
 
 const formatFechaLlegada = valor => {
   const partes = /^(\d{4})-(\d{2})-(\d{2})/.exec(
@@ -42,6 +46,7 @@ export function SoporteTicketsDashboard({
   vistaInicial = 'KANBAN'
 }) {
   const [tickets, setTickets] = useState([]);
+  const filtrosTickets = useFiltrosSoporte('tickets', tickets);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('Todos');
@@ -1076,13 +1081,8 @@ export function SoporteTicketsDashboard({
       t => t.estado === 'Resuelto'
     );
   const getFilteredList = (list) => {
-    return list.filter(t => {
-      const p = t.placa ? String(t.placa).toLowerCase() : '';
-      const id = t.id ? String(t.id).toLowerCase() : '';
-      const s = searchTerm ? String(searchTerm).toLowerCase() : '';
-      return p.includes(s) || `tkt-${id}`.includes(s);
-    });
-  };
+  return filtrosTickets.filtrar(list);
+};
 
   const handleDragStart = (e, id) => {
     e.dataTransfer.setData('ticketId', id);
@@ -1619,15 +1619,27 @@ export function SoporteTicketsDashboard({
           Descarga de videos
         </button>
       </div>
-
+      {(activeTab === 'KANBAN' || activeTab === 'HISTORIAL') && (
+  <FiltrosSoporte
+    tipo="tickets"
+    control={filtrosTickets}
+    alLimpiar={() => setStatusFilter('Todos')}
+    registros={getFilteredList(
+      activeTab === 'HISTORIAL'
+        ? resueltos
+        : [...pendientes, ...enProceso].filter(
+            ticket =>
+              statusFilter === 'Todos' ||
+              ticket.estado === statusFilter
+          )
+    )}
+  />
+)}
       {activeTab === 'KANBAN' && (
         <>
           {/* Controles de Filtrado y Stats */}
           <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', flexWrap: 'wrap', alignItems: 'center', backgroundColor: 'var(--card-bg)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-            <label className="ui-search-field">
-              <UiIcon name="search" />
-              <input type="text" placeholder="Buscar placa o #TKT..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-            </label>
+            
 
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <button onClick={() => setStatusFilter('Todos')} style={{ padding: '0.5rem 1rem', borderRadius: '2rem', border: 'none', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem', backgroundColor: statusFilter === 'Todos' ? '#101b33' : '#E5E7EB', color: statusFilter === 'Todos' ? 'white' : '#374151', transition: 'all 0.2s' }}>
@@ -1659,10 +1671,7 @@ export function SoporteTicketsDashboard({
       {activeTab === 'HISTORIAL' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', animation: 'fadeIn 0.3s ease-out' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--card-bg)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)' }}>
-            <label className="ui-search-field ui-search-field-compact">
-              <UiIcon name="search" />
-              <input type="text" placeholder="Buscar placa o #TKT en historial..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-            </label>
+            
             <span style={{ fontWeight: 'bold', color: 'var(--text-secondary)' }}>Total Resueltos: {resueltos.length}</span>
           </div>
 

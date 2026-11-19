@@ -1,3 +1,4 @@
+import { FiltrosSoporte, useFiltrosSoporte } from './reportesSoporte/FiltrosSoporte';
 import {
   useCallback,
   useEffect,
@@ -73,6 +74,9 @@ export function ReportesPulserasPanel({
 
   const [loading, setLoading] =
     useState(true);
+
+  const filtros = useFiltrosSoporte('pulseras', reportes);
+  const filtrados = filtros.filtrar(reportes);
 
   const [updatingId, setUpdatingId] =
     useState(null);
@@ -214,7 +218,8 @@ export function ReportesPulserasPanel({
         </button>
       </div>
 
-      {reportes.length === 0 ? (
+      <FiltrosSoporte tipo="pulseras" control={filtros} registros={filtrados} />
+      {filtrados.length === 0 ? (
         <div style={{
           padding: '3rem',
           textAlign: 'center',
@@ -223,7 +228,7 @@ export function ReportesPulserasPanel({
           border: '1px solid var(--border-color)',
           borderRadius: '1rem'
         }}>
-          No existen reportes de pulseras.
+          No hay reportes de pulseras que coincidan con los filtros.
         </div>
       ) : (
         <div style={{
@@ -277,7 +282,7 @@ export function ReportesPulserasPanel({
             </thead>
 
             <tbody>
-              {reportes.map(reporte => {
+              {filtrados.map(reporte => {
                 const colorEstado =
                   COLORES_ESTADO[
                   reporte.estado

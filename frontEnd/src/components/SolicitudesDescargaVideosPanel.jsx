@@ -1,3 +1,4 @@
+import { FiltrosSoporte, useFiltrosSoporte } from './reportesSoporte/FiltrosSoporte';
 import { formatearPlaca } from '../utils/formatos';
 import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
@@ -64,6 +65,9 @@ export function SolicitudesDescargaVideosPanel({
 }) {
   const [solicitudes, setSolicitudes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const filtros = useFiltrosSoporte('videos', solicitudes);
+  const filtrados = filtros.filtrar(solicitudes);
+
   const [updatingId, setUpdatingId] = useState(null);
   const [respuesta, setRespuesta] = useState(null);
 
@@ -196,7 +200,8 @@ export function SolicitudesDescargaVideosPanel({
         </button>
       </div>
 
-      {solicitudes.length === 0 ? (
+      <FiltrosSoporte tipo="videos" control={filtros} registros={filtrados} />
+      {filtrados.length === 0 ? (
         <div style={{
           padding: '3rem',
           textAlign: 'center',
@@ -205,7 +210,7 @@ export function SolicitudesDescargaVideosPanel({
           border: '1px solid var(--border-color)',
           borderRadius: '1rem'
         }}>
-          No existen solicitudes de descarga de videos.
+          No hay solicitudes que coincidan con los filtros.
         </div>
       ) : (
         <div style={{
@@ -257,7 +262,7 @@ export function SolicitudesDescargaVideosPanel({
             </thead>
 
             <tbody>
-              {solicitudes.map(solicitud => {
+              {filtrados.map(solicitud => {
                 const colorEstado =
                   COLORES_ESTADO[solicitud.estado] ||
                   COLORES_ESTADO.Pendiente;

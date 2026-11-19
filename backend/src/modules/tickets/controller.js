@@ -1,3 +1,4 @@
+import { generarExcelSoporte, seleccionarRegistrosPermitidos } from './reportes/excel.js';
 import { cerrarPulseraSinCambio } from './cierrePulseras.js';
 import {
   uploadToCloudinary,
@@ -2114,3 +2115,25 @@ const crearEliminadorReporte = (eliminar,tabla,etiqueta)=>
   'solicitud de descarga de videos'
 );
 
+
+
+// La selección contiene solo identificadores; se vuelve a consultar con el alcance del usuario.
+export const exportarSoporteExcel = async (req, res) => {
+  try {
+    const { tipo, ids } = req.body || {};
+    if (!req.user || !['tickets','pulseras','videos'].includes(tipo) || !Array.isArray(ids) || !ids.length || ids.length > 5000 || ids.some(id => !/^[1-9]\d*$/.test(String(id))))
+      return res.status(400).json({error:'Seleccione entre 1 y 5000 registros válidos.'});
+    const contexto = await contextoTicket(req, 'ver');
+    const alcance = {accesoTotal:contexto.accesoTotal,clienteOperacionIds:contexto.clienteOperacionIds,usuarioId:req.user.id};
+    const todos = tipo === 'tickets' ? await obtenerTickets(alcance) : tipo === 'pulseras' ? await obtenerReportesPulseras(alcance) : await obtenerSolicitudesDescargaVideos(alcance);
+    const registros = seleccionarRegistrosPermitidos(ids, todos);
+    if (!registros) return res.status(403).json({error:'Uno o más registros ya no están disponibles para esta cuenta. Actualiza la lista.'});
+    const buffer = await generarExcelSoporte(tipo, registros);
+    res.set('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.set('Content-Disposition',`attachment; filename="reporte-${tipo}.xlsx"`);
+    return res.send(Buffer.from(buffer));
+  } catch (error) {
+    console.error('Error generando reporte de soporte:',error.message);
+    return res.status(error.status || 500).json({error:error.status ? error.message : 'No se pudo generar el reporte Excel.'});
+  }
+};

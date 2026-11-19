@@ -14,6 +14,7 @@ import {
 } from '../../middlewares/upload.js';
 
 import {
+  exportarSoporteExcel,
   opcionesTickets,
   opcionesReportePulseras,
   crearReportePulsera,
@@ -37,6 +38,8 @@ eliminarSolicitudDescargaVideos,
 // ==========================================
 
 const router = Router();
+
+router.post('/reportes/excel', requirePermiso('tickets', 'ver'), exportarSoporteExcel);
 
 router.get(
   '/opciones',

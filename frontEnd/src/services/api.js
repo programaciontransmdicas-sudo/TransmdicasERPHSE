@@ -941,6 +941,14 @@ export const api = {
 
       return result;
     },
+  exportarSoporteExcel: async (tipo, ids) => {
+    const response = await fetchWithAuth(`${BASE_URL}/api/incidentes/reportes/excel`, { method:'POST', body:JSON.stringify({tipo,ids}) });
+    if (!response.ok) { const data=await response.json().catch(()=>({})); throw new Error(data.error || 'No se pudo generar el Excel'); }
+    const blob=await response.blob();
+    const url=URL.createObjectURL(blob);
+    const enlace=document.createElement('a'); enlace.href=url; enlace.download=`reporte-${tipo}.xlsx`; document.body.appendChild(enlace); enlace.click(); enlace.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  },
   // === INCIDENTES ===
   getIncidentes: async () => {
     const response = await fetchWithAuth(`${BASE_URL}/api/incidentes`);

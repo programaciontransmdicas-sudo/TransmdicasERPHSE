@@ -1,0 +1,8 @@
+.soporte-filtros { display:grid; gap:12px; margin:0 0 16px; padding:16px; border:1px solid var(--border-color); border-radius:14px; background:var(--card-bg); }
+.soporte-filtros-cabecera { display:flex; justify-content:space-between; gap:10px; color:var(--text-secondary); }
+.soporte-filtros-grilla { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; }
+.soporte-filtros-grilla label { display:grid; gap:5px; min-width:0; font-size:12px; font-weight:650; color:var(--text-secondary); }
+.soporte-filtros-grilla input,.soporte-filtros-grilla select { box-sizing:border-box; width:100%; min-width:0; min-height:42px; padding:8px 10px; border:1px solid var(--border-color); border-radius:9px; background:var(--bg-secondary); color:var(--text-primary); font:inherit; }
+.soporte-filtros-acciones { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+.soporte-filtros p[role=alert] { color:#bd3333; margin:0; font-size:.85rem; }
+@media(max-width:600px){ .soporte-filtros-grilla {grid-template-columns:repeat(2,minmax(0,1fr));} .soporte-filtros-grilla label:first-child {grid-column:1/-1;} .soporte-filtros-acciones button {flex:1 1 130px;} }
